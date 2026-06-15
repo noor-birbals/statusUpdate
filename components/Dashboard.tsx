@@ -1,15 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { BOARDS, type BoardId } from '@/lib/constants';
-import { fetchAllIssues, parseErrorHint } from '@/lib/jira-client';
+import { fetchAllIssues, fetchAuthUser, logout, parseErrorHint } from '@/lib/jira-client';
 import { aggregateIssues } from '@/lib/stats';
 import type { BoardStats } from '@/lib/types';
 import BoardContent from './BoardContent';
-import CredentialsModal from './CredentialsModal';
-
-const STORAGE_EMAIL = 'jira_email';
-const STORAGE_TOKEN = 'jira_token';
+import LoginScreen from './LoginScreen';
 
 interface BoardState {
   loading: boolean;
@@ -19,37 +17,65 @@ interface BoardState {
 
 const emptyBoard: BoardState = { loading: false, error: null, stats: null };
 
+const AUTH_ERRORS: Record<string, string> = {
+  oauth_not_configured: 'OAuth is not configured on the server. Set ATLASSIAN_CLIENT_ID and ATLASSIAN_CLIENT_SECRET.',
+  access_denied: 'Sign-in was cancelled.',
+  invalid_state: 'Sign-in failed (invalid state). Please try again.',
+};
+
 export default function Dashboard() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<BoardId>('mic');
-  const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
-  const [showModal, setShowModal] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
-  const [headerSub, setHeaderSub] = useState('Connecting to Jira…');
+  const [headerSub, setHeaderSub] = useState('Sign in to load sprint data');
   const [boards, setBoards] = useState<Record<BoardId, BoardState>>({
     mic: { ...emptyBoard },
     bib: { ...emptyBoard },
   });
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem(STORAGE_EMAIL) || '';
-    const savedToken = localStorage.getItem(STORAGE_TOKEN) || '';
-    if (savedEmail && savedToken) {
-      setEmail(savedEmail);
-      setToken(savedToken);
-      setShowModal(false);
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      setAuthError(AUTH_ERRORS[errorParam] || decodeURIComponent(errorParam));
     }
+    if (searchParams.get('auth') === 'success') {
+      window.history.replaceState({}, '', '/');
+    }
+  }, [searchParams]);
+
+  const checkAuth = useCallback(async () => {
+    setAuthLoading(true);
+    const user = await fetchAuthUser();
+    if (user) {
+      setAuthenticated(true);
+      setUserName(user.userName || '');
+      setUserEmail(user.userEmail || '');
+      setAuthError(null);
+    } else {
+      setAuthenticated(false);
+    }
+    setAuthLoading(false);
+    return !!user;
   }, []);
 
-  const loadBoard = useCallback(async (boardId: BoardId, creds: { email: string; token: string }) => {
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const loadBoard = useCallback(async (boardId: BoardId) => {
     setBoards((prev) => ({
       ...prev,
       [boardId]: { ...prev[boardId], loading: true, error: null },
     }));
 
     try {
-      const issues = await fetchAllIssues(BOARDS[boardId].host, creds.email, creds.token);
+      const issues = await fetchAllIssues(BOARDS[boardId].host);
       const stats = aggregateIssues(issues);
       setBoards((prev) => ({
         ...prev,
@@ -58,6 +84,9 @@ export default function Dashboard() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       const hint = parseErrorHint(msg);
+      if (msg.includes('401')) {
+        setAuthenticated(false);
+      }
       setBoards((prev) => ({
         ...prev,
         [boardId]: {
@@ -69,9 +98,9 @@ export default function Dashboard() {
     }
   }, []);
 
-  const loadAll = useCallback(async (creds: { email: string; token: string }) => {
+  const loadAll = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadBoard('mic', creds), loadBoard('bib', creds)]);
+    await Promise.all([loadBoard('mic'), loadBoard('bib')]);
     const now = new Date().toLocaleString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -85,48 +114,50 @@ export default function Dashboard() {
   }, [loadBoard]);
 
   useEffect(() => {
-    if (email && token && !showModal) {
-      loadAll({ email, token });
+    if (authenticated && !authLoading) {
+      loadAll();
     }
-  }, [email, token, showModal, loadAll]);
+  }, [authenticated, authLoading, loadAll]);
 
-  function handleSave(newEmail: string, newToken: string) {
-    localStorage.setItem(STORAGE_EMAIL, newEmail);
-    localStorage.setItem(STORAGE_TOKEN, newToken);
-    setEmail(newEmail);
-    setToken(newToken);
-    setShowModal(false);
+  async function handleLogout() {
+    await logout();
+    setAuthenticated(false);
+    setUserName('');
+    setUserEmail('');
+    setHeaderSub('Sign in to load sprint data');
+    setLastUpdated('');
+    setBoards({ mic: { ...emptyBoard }, bib: { ...emptyBoard } });
   }
 
-  function openSettings() {
-    setShowModal(true);
+  if (authLoading) {
+    return (
+      <div className="spinner-wrap" style={{ minHeight: '60vh' }}>
+        <div className="spinner" />
+        <div className="spinner-label">Checking session…</div>
+      </div>
+    );
   }
+
+  if (!authenticated) {
+    return <LoginScreen error={authError} />;
+  }
+
+  const displayName = userName || userEmail || 'Signed in';
 
   return (
     <>
-      <CredentialsModal
-        open={showModal}
-        email={email}
-        onClose={() => setShowModal(false)}
-        onSave={handleSave}
-      />
-
       <div className="header">
         <div className="header-left">
           <h1>Sprint Command Centre</h1>
           <p>{headerSub}</p>
         </div>
         <div className="header-right">
-          {lastUpdated && <span className="last-updated">{lastUpdated}</span>}
-          <button
-            className="hbtn"
-            disabled={refreshing || showModal}
-            onClick={() => loadAll({ email, token })}
-          >
+          <span className="last-updated">{displayName}{lastUpdated ? ` · ${lastUpdated}` : ''}</span>
+          <button className="hbtn" disabled={refreshing} onClick={loadAll}>
             {refreshing ? '↻ Loading…' : '↻ Refresh'}
           </button>
-          <button className="hbtn" onClick={openSettings}>
-            Settings
+          <button className="hbtn" onClick={handleLogout}>
+            Sign out
           </button>
         </div>
       </div>
@@ -146,7 +177,7 @@ export default function Dashboard() {
       {(Object.keys(BOARDS) as BoardId[]).map((id) => {
         const board = boards[id];
         return (
-          <div key={id} className={`board${activeTab === id ? ' active' : ''}`} id={`board-${id}`}>
+          <div key={id} className={`board${activeTab === id ? ' active' : ''}`}>
             {board.error && (
               <div className="error-banner">
                 <h4>Could not load {BOARDS[id].label} data</h4>

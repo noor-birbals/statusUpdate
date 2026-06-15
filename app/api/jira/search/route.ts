@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getValidSession } from '@/lib/atlassian-oauth';
 import { JIRA_FIELDS } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
-  const auth = request.headers.get('authorization');
-  if (!auth) {
-    return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+  const session = await getValidSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   let body: { host?: string; jql?: string; nextPageToken?: string; maxResults?: number };
@@ -23,6 +24,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing jql' }, { status: 400 });
   }
 
+  const cloudId = session.cloudIds[host];
+  if (!cloudId) {
+    return NextResponse.json(
+      { error: `No access to ${host}. Sign in with an account that has access to this site.` },
+      { status: 403 },
+    );
+  }
+
   const jiraBody: Record<string, unknown> = {
     jql,
     maxResults,
@@ -30,15 +39,18 @@ export async function POST(request: NextRequest) {
   };
   if (nextPageToken) jiraBody.nextPageToken = nextPageToken;
 
-  const jiraRes = await fetch(`https://${host}/rest/api/3/search/jql`, {
-    method: 'POST',
-    headers: {
-      Authorization: auth,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+  const jiraRes = await fetch(
+    `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(jiraBody),
     },
-    body: JSON.stringify(jiraBody),
-  });
+  );
 
   const text = await jiraRes.text();
   return new NextResponse(text, {

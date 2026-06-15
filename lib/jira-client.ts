@@ -1,24 +1,21 @@
 import { JQL } from './constants';
 import type { JiraIssue, JiraSearchResponse } from './types';
 
-function basicAuth(email: string, token: string): string {
-  return `Basic ${btoa(`${email}:${token}`)}`;
-}
-
-export async function fetchAllIssues(host: string, email: string, token: string): Promise<JiraIssue[]> {
-  const auth = basicAuth(email, token);
+export async function fetchAllIssues(host: string): Promise<JiraIssue[]> {
   const all: JiraIssue[] = [];
   let nextPageToken: string | undefined;
 
   while (true) {
     const res = await fetch('/api/jira/search', {
       method: 'POST',
-      headers: {
-        Authorization: auth,
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ host, jql: JQL, nextPageToken, maxResults: 100 }),
     });
+
+    if (res.status === 401) {
+      throw new Error('401 Unauthorized — please sign in again.');
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -37,10 +34,28 @@ export async function fetchAllIssues(host: string, email: string, token: string)
 
 export function parseErrorHint(message: string): string {
   if (message.includes('401')) {
-    return 'Check your email and API token in Settings.';
+    return 'Your session expired. Sign in again with Atlassian.';
   }
   if (message.includes('403')) {
     return "Your account doesn't have access to this Jira site.";
   }
   return '';
+}
+
+export interface AuthUser {
+  userName?: string;
+  userEmail?: string;
+}
+
+export async function fetchAuthUser(): Promise<AuthUser | null> {
+  const res = await fetch('/api/auth/me', { credentials: 'include' });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.authenticated
+    ? { userName: data.userName, userEmail: data.userEmail }
+    : null;
+}
+
+export async function logout(): Promise<void> {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
 }

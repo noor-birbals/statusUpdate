@@ -65,6 +65,11 @@ body {
   transition: background 0.15s;
 }
 .btn-primary:hover { background: #0747A6; }
+.btn-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
 .btn-ghost {
   background: transparent;
   color: #5E6C84;
