@@ -161,6 +161,66 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner-label { font-size: 14px; color: #5E6C84; }
 
+/* ── FILTERS ── */
+.filter-bar {
+  background: #fff;
+  border-bottom: 1px solid #DFE1E6;
+  padding: 14px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.filter-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5E6C84;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filter-group select,
+.filter-group input[type="date"] {
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #172B4D;
+  background: #fff;
+  min-width: 180px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.filter-group select:focus,
+.filter-group input[type="date"]:focus {
+  border-color: #0052CC;
+}
+.filter-clear {
+  background: #F4F5F7;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5E6C84;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.filter-clear:hover {
+  background: #EBECF0;
+  color: #172B4D;
+}
+.filter-count {
+  font-size: 12px;
+  color: #5E6C84;
+  margin-left: auto;
+  align-self: center;
+}
+
 /* ── BOARD ── */
 .board { display: none; padding: 22px 28px; }
 .board.active { display: block; }

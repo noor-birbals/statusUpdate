@@ -1,27 +1,34 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BOARDS, type BoardId } from '@/lib/constants';
+import { EMPTY_FILTERS, filterIssues, getAssignees, type DashboardFilters } from '@/lib/filters';
 import { fetchAllIssues, fetchAuthUser, logout, parseErrorHint } from '@/lib/jira-client';
 import { aggregateIssues } from '@/lib/stats';
-import type { BoardStats } from '@/lib/types';
+import type { JiraIssue } from '@/lib/types';
 import BoardContent from './BoardContent';
+import FilterBar from './FilterBar';
 import LoginScreen from './LoginScreen';
 
 interface BoardState {
   loading: boolean;
   error: string | null;
-  stats: BoardStats | null;
+  issues: JiraIssue[];
 }
 
-const emptyBoard: BoardState = { loading: false, error: null, stats: null };
+const emptyBoard: BoardState = { loading: false, error: null, issues: [] };
 
 const AUTH_ERRORS: Record<string, string> = {
   oauth_not_configured: 'OAuth is not configured on the server. Set ATLASSIAN_CLIENT_ID and ATLASSIAN_CLIENT_SECRET.',
   access_denied: 'Sign-in was cancelled.',
   invalid_state: 'Sign-in failed (invalid state). Please try again.',
 };
+
+const defaultFilters = (): Record<BoardId, DashboardFilters> => ({
+  mic: { ...EMPTY_FILTERS },
+  bib: { ...EMPTY_FILTERS },
+});
 
 export default function Dashboard() {
   const searchParams = useSearchParams();
@@ -34,6 +41,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   const [headerSub, setHeaderSub] = useState('Sign in to load sprint data');
+  const [filters, setFilters] = useState<Record<BoardId, DashboardFilters>>(defaultFilters);
   const [boards, setBoards] = useState<Record<BoardId, BoardState>>({
     mic: { ...emptyBoard },
     bib: { ...emptyBoard },
@@ -76,10 +84,9 @@ export default function Dashboard() {
 
     try {
       const issues = await fetchAllIssues(BOARDS[boardId].host);
-      const stats = aggregateIssues(issues);
       setBoards((prev) => ({
         ...prev,
-        [boardId]: { loading: false, error: null, stats },
+        [boardId]: { loading: false, error: null, issues },
       }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -92,7 +99,7 @@ export default function Dashboard() {
         [boardId]: {
           loading: false,
           error: hint ? `${msg} — ${hint}` : msg,
-          stats: null,
+          issues: [],
         },
       }));
     }
@@ -126,8 +133,22 @@ export default function Dashboard() {
     setUserEmail('');
     setHeaderSub('Sign in to load sprint data');
     setLastUpdated('');
+    setFilters(defaultFilters());
     setBoards({ mic: { ...emptyBoard }, bib: { ...emptyBoard } });
   }
+
+  const activeBoard = boards[activeTab];
+  const activeFilters = filters[activeTab];
+
+  const filteredIssues = useMemo(
+    () => filterIssues(activeBoard.issues, activeFilters),
+    [activeBoard.issues, activeFilters],
+  );
+
+  const assignees = useMemo(
+    () => getAssignees(activeBoard.issues),
+    [activeBoard.issues],
+  );
 
   if (authLoading) {
     return (
@@ -174,8 +195,23 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {!activeBoard.loading && activeBoard.issues.length > 0 && (
+        <FilterBar
+          assignees={assignees}
+          filters={activeFilters}
+          totalCount={activeBoard.issues.length}
+          filteredCount={filteredIssues.length}
+          onChange={(next) => setFilters((prev) => ({ ...prev, [activeTab]: next }))}
+          onClear={() => setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }))}
+        />
+      )}
+
       {(Object.keys(BOARDS) as BoardId[]).map((id) => {
         const board = boards[id];
+        const boardFilters = filters[id];
+        const issues = filterIssues(board.issues, boardFilters);
+        const stats = board.issues.length ? aggregateIssues(issues) : null;
+
         return (
           <div key={id} className={`board${activeTab === id ? ' active' : ''}`}>
             {board.error && (
@@ -190,18 +226,26 @@ export default function Dashboard() {
                 <div className="spinner-label">Loading {BOARDS[id].label} sprint…</div>
               </div>
             )}
-            {!board.loading && board.stats && (
+            {!board.loading && stats && issues.length > 0 && activeTab === id && (
               <BoardContent
                 boardId={id}
                 host={BOARDS[id].host}
                 label={BOARDS[id].label}
-                stats={board.stats}
+                stats={stats}
                 showProjects={id === 'bib'}
               />
             )}
           </div>
         );
       })}
+
+      {!activeBoard.loading && activeBoard.issues.length > 0 && filteredIssues.length === 0 && (
+        <div className="board active">
+          <div className="empty-state" style={{ padding: 48 }}>
+            No issues match the current filters. Try adjusting team member or date range.
+          </div>
+        </div>
+      )}
     </>
   );
 }

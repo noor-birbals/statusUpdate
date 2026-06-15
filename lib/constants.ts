@@ -14,6 +14,7 @@ export const JIRA_FIELDS = [
   'issuetype',
   'project',
   'priority',
+  'updated',
 ] as const;
 
 export const PALETTE = [

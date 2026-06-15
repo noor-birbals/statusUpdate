@@ -7,6 +7,7 @@ export interface JiraIssue {
     issuetype?: { name: string };
     project?: { name?: string; key?: string };
     priority?: { name: string };
+    updated?: string;
   };
 }
 
