@@ -16,5 +16,5 @@ export function getOAuthConfig() {
 }
 
 export function getRedirectUri(origin: string): string {
-  return process.env.ATLASSIAN_REDIRECT_URI || `${origin}/api/auth/callback`;
+  return process.env.ATLASSIAN_REDIRECT_URI || `${origin.replace(/\/$/, '')}/api/auth/callback`;
 }

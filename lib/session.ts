@@ -1,7 +1,8 @@
-import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export const SESSION_COOKIE = 'sprint_session';
+export const ACCESS_COOKIE = 'sprint_access';
 export const STATE_COOKIE = 'oauth_state';
 
 export interface SessionPayload {
@@ -13,44 +14,70 @@ export interface SessionPayload {
   cloudIds: Record<string, string>;
 }
 
-function getSecret() {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    throw new Error('SESSION_SECRET environment variable is not set');
-  }
-  return new TextEncoder().encode(secret);
+interface StoredMeta {
+  refreshToken: string;
+  expiresAt: number;
+  userName?: string;
+  userEmail?: string;
+  cloudIds: Record<string, string>;
+}
+
+function cookieOptions(maxAge = 60 * 60 * 24 * 7) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge,
+  };
+}
+
+export function applySessionCookies(response: NextResponse, session: SessionPayload) {
+  const { accessToken, refreshToken, expiresAt, userName, userEmail, cloudIds } = session;
+
+  response.cookies.set(ACCESS_COOKIE, accessToken, cookieOptions());
+  response.cookies.set(
+    SESSION_COOKIE,
+    JSON.stringify({ refreshToken, expiresAt, userName, userEmail, cloudIds }),
+    cookieOptions(),
+  );
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+  const metaRaw = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!accessToken || !metaRaw) return null;
 
   try {
-    const { payload } = await jwtVerify(token, getSecret());
-    return payload as unknown as SessionPayload;
+    const meta = JSON.parse(metaRaw) as StoredMeta;
+    return { ...meta, accessToken };
   } catch {
     return null;
   }
 }
 
 export async function setSession(session: SessionPayload) {
-  const jwt = await new SignJWT({ ...session })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('7d')
-    .sign(getSecret());
-
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, jwt, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  const { accessToken, refreshToken, expiresAt, userName, userEmail, cloudIds } = session;
+
+  cookieStore.set(ACCESS_COOKIE, accessToken, cookieOptions());
+  cookieStore.set(
+    SESSION_COOKIE,
+    JSON.stringify({ refreshToken, expiresAt, userName, userEmail, cloudIds }),
+    cookieOptions(),
+  );
 }
 
 export async function clearSession() {
   const cookieStore = await cookies();
+  cookieStore.delete(ACCESS_COOKIE);
   cookieStore.delete(SESSION_COOKIE);
+}
+
+export function appOrigin(requestUrl: string): string {
+  if (process.env.ATLASSIAN_REDIRECT_URI) {
+    return new URL(process.env.ATLASSIAN_REDIRECT_URI).origin;
+  }
+  return new URL(requestUrl).origin;
 }

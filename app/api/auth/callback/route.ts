@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionFromCode } from '@/lib/atlassian-oauth';
 import { getRedirectUri } from '@/lib/auth-config';
-import { setSession, STATE_COOKIE } from '@/lib/session';
+import { applySessionCookies, appOrigin, STATE_COOKIE } from '@/lib/session';
 
-function redirectWithClearedState(request: NextRequest, path: string) {
-  const response = NextResponse.redirect(new URL(path, request.url));
+function redirectHome(request: NextRequest, path: string) {
+  const response = NextResponse.redirect(new URL(path, appOrigin(request.url)));
   response.cookies.delete(STATE_COOKIE);
   return response;
 }
@@ -17,20 +17,21 @@ export async function GET(request: NextRequest) {
   const savedState = request.cookies.get(STATE_COOKIE)?.value;
 
   if (error) {
-    return redirectWithClearedState(request, `/?error=${encodeURIComponent(error)}`);
+    return redirectHome(request, `/?error=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state || !savedState || state !== savedState) {
-    return redirectWithClearedState(request, '/?error=invalid_state');
+    return redirectHome(request, '/?error=invalid_state');
   }
 
   try {
-    const redirectUri = getRedirectUri(request.nextUrl.origin);
+    const redirectUri = getRedirectUri(appOrigin(request.url));
     const session = await createSessionFromCode(code, redirectUri);
-    await setSession(session);
-    return redirectWithClearedState(request, '/?auth=success');
+    const response = redirectHome(request, '/?auth=success');
+    applySessionCookies(response, session);
+    return response;
   } catch (e) {
     const message = e instanceof Error ? e.message : 'auth_failed';
-    return redirectWithClearedState(request, `/?error=${encodeURIComponent(message)}`);
+    return redirectHome(request, `/?error=${encodeURIComponent(message)}`);
   }
 }
