@@ -3,6 +3,9 @@ import { createSessionFromCode } from '@/lib/atlassian-oauth';
 import { getRedirectUri } from '@/lib/auth-config';
 import { applySessionCookies, appOrigin, STATE_COOKIE } from '@/lib/session';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 function redirectHome(request: NextRequest, path: string) {
   const response = NextResponse.redirect(new URL(path, appOrigin(request.url)));
   response.cookies.delete(STATE_COOKIE);

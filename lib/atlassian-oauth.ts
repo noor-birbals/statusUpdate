@@ -1,6 +1,6 @@
 import { ATLASSIAN_SCOPES, getOAuthConfig } from './auth-config';
 import type { SessionPayload } from './session';
-import { getSession, setSession } from './session';
+import { cacheAccessToken, getCachedAccessToken, getStoredSession } from './session';
 
 interface TokenResponse {
   access_token: string;
@@ -153,23 +153,22 @@ export async function createSessionFromCode(
 }
 
 export async function getValidSession(): Promise<SessionPayload | null> {
-  const session = await getSession();
-  if (!session) return null;
+  const stored = await getStoredSession();
+  if (!stored) return null;
 
-  if (Date.now() < session.expiresAt - 60_000) {
-    return session;
+  const cached = getCachedAccessToken(stored.refreshToken);
+  if (cached && Date.now() < cached.expiresAt - 60_000) {
+    return { ...stored, accessToken: cached.accessToken, expiresAt: cached.expiresAt };
   }
 
   try {
-    const refreshed = await refreshAccessToken(session.refreshToken);
-    const updated: SessionPayload = {
-      ...session,
+    const refreshed = await refreshAccessToken(stored.refreshToken);
+    cacheAccessToken(stored.refreshToken, refreshed.accessToken, refreshed.expiresAt);
+    return {
+      ...stored,
       accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken,
       expiresAt: refreshed.expiresAt,
     };
-    await setSession(updated);
-    return updated;
   } catch {
     return null;
   }

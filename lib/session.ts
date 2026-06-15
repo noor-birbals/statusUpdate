@@ -2,7 +2,6 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export const SESSION_COOKIE = 'sprint_session';
-export const ACCESS_COOKIE = 'sprint_access';
 export const STATE_COOKIE = 'oauth_state';
 
 export interface SessionPayload {
@@ -14,15 +13,16 @@ export interface SessionPayload {
   cloudIds: Record<string, string>;
 }
 
-interface StoredMeta {
+export interface StoredSession {
   refreshToken: string;
-  expiresAt: number;
   userName?: string;
   userEmail?: string;
   cloudIds: Record<string, string>;
 }
 
-function cookieOptions(maxAge = 60 * 60 * 24 * 7) {
+const tokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
+
+function cookieOptions(maxAge = 60 * 60 * 24 * 30) {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -33,45 +33,41 @@ function cookieOptions(maxAge = 60 * 60 * 24 * 7) {
 }
 
 export function applySessionCookies(response: NextResponse, session: SessionPayload) {
-  const { accessToken, refreshToken, expiresAt, userName, userEmail, cloudIds } = session;
-
-  response.cookies.set(ACCESS_COOKIE, accessToken, cookieOptions());
-  response.cookies.set(
-    SESSION_COOKIE,
-    JSON.stringify({ refreshToken, expiresAt, userName, userEmail, cloudIds }),
-    cookieOptions(),
-  );
+  cacheAccessToken(session.refreshToken, session.accessToken, session.expiresAt);
+  const stored: StoredSession = {
+    refreshToken: session.refreshToken,
+    userName: session.userName,
+    userEmail: session.userEmail,
+    cloudIds: session.cloudIds,
+  };
+  response.cookies.set(SESSION_COOKIE, JSON.stringify(stored), cookieOptions());
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
+export async function getStoredSession(): Promise<StoredSession | null> {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
-  const metaRaw = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!accessToken || !metaRaw) return null;
+  const raw = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!raw) return null;
 
   try {
-    const meta = JSON.parse(metaRaw) as StoredMeta;
-    return { ...meta, accessToken };
+    return JSON.parse(raw) as StoredSession;
   } catch {
     return null;
   }
 }
 
-export async function setSession(session: SessionPayload) {
-  const cookieStore = await cookies();
-  const { accessToken, refreshToken, expiresAt, userName, userEmail, cloudIds } = session;
+export function getCachedAccessToken(refreshToken: string) {
+  return tokenCache.get(refreshToken) ?? null;
+}
 
-  cookieStore.set(ACCESS_COOKIE, accessToken, cookieOptions());
-  cookieStore.set(
-    SESSION_COOKIE,
-    JSON.stringify({ refreshToken, expiresAt, userName, userEmail, cloudIds }),
-    cookieOptions(),
-  );
+export function cacheAccessToken(refreshToken: string, accessToken: string, expiresAt: number) {
+  tokenCache.set(refreshToken, { accessToken, expiresAt });
 }
 
 export async function clearSession() {
+  const stored = await getStoredSession();
+  if (stored) tokenCache.delete(stored.refreshToken);
+
   const cookieStore = await cookies();
-  cookieStore.delete(ACCESS_COOKIE);
   cookieStore.delete(SESSION_COOKIE);
 }
 
