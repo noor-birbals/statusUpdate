@@ -337,18 +337,38 @@ body {
   background: rgba(255, 255, 255, 0.18);
   padding: 4px 12px;
   border-radius: 20px;
+  flex-shrink: 0;
+}
+.story-points-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+  padding-bottom: 4px;
+}
+.story-points-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.story-points-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
 }
 .story-points-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
+  width: max-content;
+  min-width: 100%;
+  padding-bottom: 4px;
 }
 .story-points-card {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   padding: 10px 14px;
-  min-width: 140px;
+  min-width: 148px;
+  max-width: 180px;
+  flex: 0 0 auto;
 }
 .story-points-card-top {
   display: flex;
@@ -362,7 +382,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 130px;
 }
 .story-points-value {
   font-size: 22px;

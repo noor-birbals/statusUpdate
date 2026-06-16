@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidSession } from '@/lib/atlassian-oauth';
 import { JIRA_FIELDS } from '@/lib/constants';
+import {
+  getStoryPointFieldIds,
+  normalizeIssueStoryPoints,
+} from '@/lib/jira-story-points-server';
 
 export async function POST(request: NextRequest) {
   const session = await getValidSession();
@@ -32,10 +36,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const storyPointFieldIds = await getStoryPointFieldIds(cloudId, session.accessToken, host);
+  const fields = [...new Set([...JIRA_FIELDS, ...storyPointFieldIds])];
+
   const jiraBody: Record<string, unknown> = {
     jql,
     maxResults,
-    fields: [...JIRA_FIELDS],
+    fields,
   };
   if (nextPageToken) jiraBody.nextPageToken = nextPageToken;
 
@@ -53,8 +60,30 @@ export async function POST(request: NextRequest) {
   );
 
   const text = await jiraRes.text();
-  return new NextResponse(text, {
-    status: jiraRes.status,
-    headers: { 'Content-Type': jiraRes.headers.get('content-type') || 'application/json' },
-  });
+  if (!jiraRes.ok) {
+    return new NextResponse(text, {
+      status: jiraRes.status,
+      headers: { 'Content-Type': jiraRes.headers.get('content-type') || 'application/json' },
+    });
+  }
+
+  try {
+    const data = JSON.parse(text) as {
+      issues?: Array<{ key: string; fields: Record<string, unknown> }>;
+      [key: string]: unknown;
+    };
+
+    if (data.issues) {
+      data.issues = data.issues.map((issue) =>
+        normalizeIssueStoryPoints(issue, storyPointFieldIds),
+      );
+    }
+
+    return NextResponse.json(data);
+  } catch {
+    return new NextResponse(text, {
+      status: jiraRes.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }

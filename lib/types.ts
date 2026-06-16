@@ -8,6 +8,7 @@ export interface JiraIssue {
     project?: { name?: string; key?: string };
     priority?: { name: string };
     updated?: string;
+    storyPoints?: number;
   };
 }
 
