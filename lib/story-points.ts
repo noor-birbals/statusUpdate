@@ -33,13 +33,12 @@ export function getStoryPointsByAssignee(issues: JiraIssue[]): AssigneeStoryPoin
   return Object.entries(map)
     .map(([assignee, data]) => ({
       assignee,
-      points: Math.round(data.points * 10) / 10,
+      points: data.points,
       issues: data.issues,
     }))
     .sort((a, b) => b.points - a.points || a.assignee.localeCompare(b.assignee));
 }
 
 export function getTotalStoryPoints(issues: JiraIssue[]): number {
-  const total = issues.reduce((sum, issue) => sum + getStoryPoints(issue), 0);
-  return Math.round(total * 10) / 10;
+  return issues.reduce((sum, issue) => sum + getStoryPoints(issue), 0);
 }

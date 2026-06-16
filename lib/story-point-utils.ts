@@ -26,7 +26,8 @@ export function parseStoryPointValue(val: unknown): number {
 export function formatStoryPoints(points: number): string {
   if (points === 0) return '0';
   if (Number.isInteger(points)) return String(points);
-  return Number(points.toFixed(1)).toString();
+  // Preserve values like 0.25 — show up to 2 decimals, trim trailing zeros
+  return parseFloat(points.toFixed(2)).toString();
 }
 
 export function issueTypeHasStoryPoints(issueTypeName?: string): boolean {
