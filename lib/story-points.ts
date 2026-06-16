@@ -1,5 +1,4 @@
-import { STORY_POINT_FIELD_KEYS } from './constants';
-import { parseStoryPointValue, formatStoryPoints } from './story-point-utils';
+import { parseStoryPointValue, formatStoryPoints, issueTypeHasStoryPoints } from './story-point-utils';
 import type { JiraIssue } from './types';
 
 export { formatStoryPoints };
@@ -11,15 +10,11 @@ export interface AssigneeStoryPoints {
 }
 
 export function getStoryPoints(issue: JiraIssue): number {
-  const fields = issue.fields as Record<string, unknown>;
+  if (!issueTypeHasStoryPoints(issue.fields.issuetype?.name)) return 0;
 
+  const fields = issue.fields as Record<string, unknown>;
   if (fields.storyPoints != null) {
     return parseStoryPointValue(fields.storyPoints);
-  }
-
-  for (const key of STORY_POINT_FIELD_KEYS) {
-    const val = parseStoryPointValue(fields[key]);
-    if (val > 0) return val;
   }
 
   return 0;

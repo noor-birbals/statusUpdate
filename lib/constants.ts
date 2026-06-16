@@ -7,12 +7,6 @@ export type BoardId = keyof typeof BOARDS;
 
 export const JQL = 'sprint in openSprints() ORDER BY assignee ASC';
 
-export const STORY_POINT_FIELD_KEYS = [
-  process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10016',
-  'customfield_10020',
-  'customfield_10026',
-];
-
 export const JIRA_FIELDS = [
   'summary',
   'status',
@@ -21,7 +15,6 @@ export const JIRA_FIELDS = [
   'project',
   'priority',
   'updated',
-  ...STORY_POINT_FIELD_KEYS,
 ] as const;
 
 export const PALETTE = [

@@ -1,5 +1,4 @@
-import { STORY_POINT_FIELD_KEYS } from './constants';
-import { parseStoryPointValue } from './story-point-utils';
+import { parseStoryPointValue, issueTypeHasStoryPoints } from './story-point-utils';
 
 interface JiraFieldMeta {
   id: string;
@@ -8,17 +7,38 @@ interface JiraFieldMeta {
   schema?: { type?: string };
 }
 
-const fieldCache = new Map<string, string[]>();
+const fieldCache = new Map<string, string | null>();
 
-export async function getStoryPointFieldIds(
+function pickStoryPointField(fields: JiraFieldMeta[]): string | null {
+  const envField = process.env.JIRA_STORY_POINTS_FIELD;
+  if (envField) return envField;
+
+  const candidates = fields.filter((f) => {
+    const name = f.name.toLowerCase();
+    if (!/story\s*point/.test(name)) return false;
+    if (/epic|sum|Σ|progress|burn|change/.test(name)) return false;
+    const type = f.schema?.type;
+    if (type && !['number', 'float', 'integer'].includes(type)) return false;
+    return true;
+  });
+
+  const exact = candidates.find((f) => f.name.toLowerCase() === 'story points');
+  if (exact) return exact.id;
+
+  const estimate = candidates.find((f) =>
+    f.name.toLowerCase().includes('story point estimate'),
+  );
+  if (estimate) return estimate.id;
+
+  return candidates[0]?.id ?? null;
+}
+
+export async function getStoryPointFieldId(
   cloudId: string,
   accessToken: string,
   host: string,
-): Promise<string[]> {
-  const cached = fieldCache.get(host);
-  if (cached) return cached;
-
-  const defaults = [...STORY_POINT_FIELD_KEYS];
+): Promise<string | null> {
+  if (fieldCache.has(host)) return fieldCache.get(host)!;
 
   try {
     const res = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/field`, {
@@ -26,55 +46,35 @@ export async function getStoryPointFieldIds(
     });
 
     if (!res.ok) {
-      fieldCache.set(host, defaults);
-      return defaults;
+      fieldCache.set(host, null);
+      return null;
     }
 
     const fields = (await res.json()) as JiraFieldMeta[];
-    const discovered = fields
-      .filter((f) => {
-        const name = f.name.toLowerCase();
-        if (!/story\s*point/.test(name)) return false;
-        if (/epic|sum|Σ|progress/.test(name)) return false;
-        return true;
-      })
-      .map((f) => f.id);
-
-    const ids = [...new Set([...discovered, ...defaults])];
-    fieldCache.set(host, ids);
-    return ids;
+    const id = pickStoryPointField(fields);
+    fieldCache.set(host, id);
+    return id;
   } catch {
-    fieldCache.set(host, defaults);
-    return defaults;
+    fieldCache.set(host, null);
+    return null;
   }
 }
 
 export function extractStoryPoints(
   fields: Record<string, unknown>,
-  fieldIds: string[],
+  fieldId: string | null,
 ): number {
-  if (fields.storyPoints != null) {
-    return parseStoryPointValue(fields.storyPoints);
-  }
+  const issueType = (fields.issuetype as { name?: string } | undefined)?.name;
+  if (!issueTypeHasStoryPoints(issueType)) return 0;
+  if (!fieldId) return 0;
 
-  for (const id of fieldIds) {
-    const val = parseStoryPointValue(fields[id]);
-    if (val > 0) return val;
-  }
-
-  for (const id of fieldIds) {
-    const val = parseStoryPointValue(fields[id]);
-    if (val !== 0) return val;
-  }
-
-  return 0;
+  return parseStoryPointValue(fields[fieldId]);
 }
 
 export function normalizeIssueStoryPoints(
   issue: { key: string; fields: Record<string, unknown> },
-  fieldIds: string[],
+  fieldId: string | null,
 ) {
-  const points = extractStoryPoints(issue.fields, fieldIds);
-  issue.fields.storyPoints = points;
+  issue.fields.storyPoints = extractStoryPoints(issue.fields, fieldId);
   return issue;
 }

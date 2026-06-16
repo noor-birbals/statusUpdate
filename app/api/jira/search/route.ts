@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getValidSession } from '@/lib/atlassian-oauth';
 import { JIRA_FIELDS } from '@/lib/constants';
 import {
-  getStoryPointFieldIds,
+  getStoryPointFieldId,
   normalizeIssueStoryPoints,
 } from '@/lib/jira-story-points-server';
 
@@ -36,8 +36,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const storyPointFieldIds = await getStoryPointFieldIds(cloudId, session.accessToken, host);
-  const fields = [...new Set([...JIRA_FIELDS, ...storyPointFieldIds])];
+  const storyPointFieldId = await getStoryPointFieldId(cloudId, session.accessToken, host);
+  const fields = storyPointFieldId
+    ? [...JIRA_FIELDS, storyPointFieldId]
+    : [...JIRA_FIELDS];
 
   const jiraBody: Record<string, unknown> = {
     jql,
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (data.issues) {
       data.issues = data.issues.map((issue) =>
-        normalizeIssueStoryPoints(issue, storyPointFieldIds),
+        normalizeIssueStoryPoints(issue, storyPointFieldId),
       );
     }
 
