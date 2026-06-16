@@ -6,6 +6,7 @@ import { hasActiveFilters } from '@/lib/filters';
 
 interface Props {
   assignees: string[];
+  issueTypes: string[];
   filters: DashboardFilters;
   totalCount: number;
   filteredCount: number;
@@ -15,6 +16,7 @@ interface Props {
 
 export default function FilterBar({
   assignees,
+  issueTypes,
   filters,
   totalCount,
   filteredCount,
@@ -130,6 +132,22 @@ export default function FilterBar({
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="filter-group">
+        <label htmlFor="filter-issue-type">Issue type</label>
+        <select
+          id="filter-issue-type"
+          value={filters.issueType}
+          onChange={(e) => onApply({ ...filters, issueType: e.target.value })}
+        >
+          <option value="">All issue types</option>
+          {issueTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="filter-group">

@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BOARDS, type BoardId } from '@/lib/constants';
-import { EMPTY_FILTERS, filterIssues, getAssignees, type DashboardFilters } from '@/lib/filters';
+import { EMPTY_FILTERS, filterIssues, getAssignees, getIssueTypes, type DashboardFilters } from '@/lib/filters';
 import { fetchAllIssues, fetchAuthUser, logout, parseErrorHint } from '@/lib/jira-client';
+import { getStoryPointsByAssignee, getTotalStoryPoints } from '@/lib/story-points';
 import { aggregateIssues } from '@/lib/stats';
 import type { JiraIssue } from '@/lib/types';
 import BoardContent from './BoardContent';
 import FilterBar from './FilterBar';
 import LoginScreen from './LoginScreen';
+import StoryPointsBar from './StoryPointsBar';
 
 interface BoardState {
   loading: boolean;
@@ -150,6 +152,21 @@ export default function Dashboard() {
     [activeBoard.issues],
   );
 
+  const issueTypes = useMemo(
+    () => getIssueTypes(activeBoard.issues),
+    [activeBoard.issues],
+  );
+
+  const storyPointRows = useMemo(
+    () => getStoryPointsByAssignee(filteredIssues),
+    [filteredIssues],
+  );
+
+  const totalStoryPoints = useMemo(
+    () => getTotalStoryPoints(filteredIssues),
+    [filteredIssues],
+  );
+
   if (authLoading) {
     return (
       <div className="spinner-wrap" style={{ minHeight: '60vh' }}>
@@ -196,8 +213,17 @@ export default function Dashboard() {
       </div>
 
       {!activeBoard.loading && activeBoard.issues.length > 0 && (
+        <StoryPointsBar
+          rows={storyPointRows}
+          totalPoints={totalStoryPoints}
+          boardLabel={BOARDS[activeTab].label}
+        />
+      )}
+
+      {!activeBoard.loading && activeBoard.issues.length > 0 && (
         <FilterBar
           assignees={assignees}
+          issueTypes={issueTypes}
           filters={activeFilters}
           totalCount={activeBoard.issues.length}
           filteredCount={filteredIssues.length}
@@ -243,7 +269,7 @@ export default function Dashboard() {
       {!activeBoard.loading && activeBoard.issues.length > 0 && filteredIssues.length === 0 && (
         <div className="board active">
           <div className="empty-state" style={{ padding: 48 }}>
-            No issues match the current filters. Try adjusting team member or date range.
+            No issues match the current filters. Try adjusting team member, issue type, or date range.
           </div>
         </div>
       )}

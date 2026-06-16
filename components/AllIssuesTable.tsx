@@ -1,5 +1,6 @@
 import { PALETTE } from '@/lib/constants';
 import { avatarBg, badgeClass, classify, initials } from '@/lib/stats';
+import { getStoryPoints } from '@/lib/story-points';
 import type { JiraIssue } from '@/lib/types';
 
 interface Props {
@@ -33,6 +34,7 @@ export default function AllIssuesTable({ host, issues }: Props) {
             <th>Type</th>
             <th>Assignee</th>
             <th>Status</th>
+            <th>SP</th>
             <th>Updated</th>
           </tr>
         </thead>
@@ -42,6 +44,7 @@ export default function AllIssuesTable({ host, issues }: Props) {
             const status = f.status?.name || 'Unknown';
             const assignee = f.assignee?.displayName || 'Unassigned';
             const type = f.issuetype?.name || 'Other';
+            const sp = getStoryPoints(issue);
 
             return (
               <tr key={issue.key}>
@@ -68,6 +71,7 @@ export default function AllIssuesTable({ host, issues }: Props) {
                 <td>
                   <span className={`badge ${badgeClass(classify(status))}`}>{status}</span>
                 </td>
+                <td className="issue-sp">{sp > 0 ? sp : '—'}</td>
                 <td className="issue-date">{formatDate(f.updated)}</td>
               </tr>
             );
