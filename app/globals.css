@@ -184,7 +184,8 @@ body {
   letter-spacing: 0.5px;
 }
 .filter-group select,
-.filter-group input[type="date"] {
+.filter-group input[type="date"],
+.filter-group input[type="text"] {
   border: 2px solid #DFE1E6;
   border-radius: 6px;
   padding: 8px 12px;
@@ -196,8 +197,96 @@ body {
   transition: border-color 0.15s;
 }
 .filter-group select:focus,
-.filter-group input[type="date"]:focus {
+.filter-group input[type="date"]:focus,
+.filter-group input[type="text"]:focus {
   border-color: #0052CC;
+}
+.filter-group-user {
+  min-width: 220px;
+}
+.user-search-wrap {
+  position: relative;
+}
+.user-search-input {
+  width: 100%;
+  min-width: 220px;
+  padding-right: 28px !important;
+}
+.user-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #97A0AF;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.user-search-clear:hover {
+  color: #172B4D;
+}
+.user-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.user-search-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #172B4D;
+  cursor: pointer;
+}
+.user-search-dropdown button:hover,
+.user-search-dropdown button.active {
+  background: #DEEBFF;
+  color: #0052CC;
+}
+.user-search-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #97A0AF;
+}
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filter-submit {
+  background: #0052CC;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.filter-submit:hover:not(:disabled) {
+  background: #0747A6;
+}
+.filter-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .filter-clear {
   background: #F4F5F7;
@@ -337,6 +426,26 @@ body {
 .table-card tr:hover td { background: #F8F9FF; }
 .issue-key { color: #0052CC; font-weight: 600; font-size: 12px; text-decoration: none; }
 .issue-key:hover { text-decoration: underline; }
+.issue-summary {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.issue-date { color: #5E6C84; font-size: 12px; white-space: nowrap; }
+.assignee-cell { display: flex; align-items: center; gap: 7px; }
+.issues-table-wrap {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid #F4F5F7;
+  border-radius: 6px;
+}
+.issues-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
 .badge {
   display: inline-block;
   padding: 3px 9px;

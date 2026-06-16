@@ -1,4 +1,5 @@
-import type { BoardStats } from '@/lib/types';
+import type { BoardStats, JiraIssue } from '@/lib/types';
+import AllIssuesTable from './AllIssuesTable';
 import BoardCharts from './BoardCharts';
 import BlockersTable from './BlockersTable';
 
@@ -7,10 +8,11 @@ interface Props {
   host: string;
   label: string;
   stats: BoardStats;
+  issues: JiraIssue[];
   showProjects?: boolean;
 }
 
-export default function BoardContent({ boardId, host, stats, showProjects }: Props) {
+export default function BoardContent({ boardId, host, stats, issues, showProjects }: Props) {
   return (
     <>
       <div className="kpi-strip">
@@ -63,6 +65,14 @@ export default function BoardContent({ boardId, host, stats, showProjects }: Pro
       <div className="table-card">
         <div className="chart-title">Blocked / On-Hold Issues</div>
         <BlockersTable host={host} stats={stats} />
+      </div>
+
+      <div className="table-card">
+        <div className="chart-title">
+          All Sprint Issues
+          <span className="chart-sub">{issues.length} tickets</span>
+        </div>
+        <AllIssuesTable host={host} issues={issues} />
       </div>
     </>
   );

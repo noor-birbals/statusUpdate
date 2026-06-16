@@ -201,7 +201,7 @@ export default function Dashboard() {
           filters={activeFilters}
           totalCount={activeBoard.issues.length}
           filteredCount={filteredIssues.length}
-          onChange={(next) => setFilters((prev) => ({ ...prev, [activeTab]: next }))}
+          onApply={(next) => setFilters((prev) => ({ ...prev, [activeTab]: next }))}
           onClear={() => setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }))}
         />
       )}
@@ -232,6 +232,7 @@ export default function Dashboard() {
                 host={BOARDS[id].host}
                 label={BOARDS[id].label}
                 stats={stats}
+                issues={issues}
                 showProjects={id === 'bib'}
               />
             )}
