@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BOARDS, type BoardId } from '@/lib/constants';
-import { EMPTY_FILTERS, filterIssues, getAssignees, getIssueTypes, type DashboardFilters } from '@/lib/filters';
+import { EMPTY_FILTERS, filterIssues, getAssignees, getIssueTypes, getStatuses, type DashboardFilters } from '@/lib/filters';
 import { fetchAllIssues, fetchAuthUser, logout, parseErrorHint } from '@/lib/jira-client';
 import { getStoryPointsByAssignee, getTotalStoryPoints } from '@/lib/story-points';
 import { aggregateIssues } from '@/lib/stats';
@@ -147,6 +147,16 @@ export default function Dashboard() {
     [activeBoard.issues, activeFilters],
   );
 
+  const barFilters = useMemo(
+    () => ({ ...activeFilters, assignee: '' }),
+    [activeFilters],
+  );
+
+  const barIssues = useMemo(
+    () => filterIssues(activeBoard.issues, barFilters),
+    [activeBoard.issues, barFilters],
+  );
+
   const assignees = useMemo(
     () => getAssignees(activeBoard.issues),
     [activeBoard.issues],
@@ -157,14 +167,19 @@ export default function Dashboard() {
     [activeBoard.issues],
   );
 
+  const statuses = useMemo(
+    () => getStatuses(activeBoard.issues),
+    [activeBoard.issues],
+  );
+
   const storyPointRows = useMemo(
-    () => getStoryPointsByAssignee(filteredIssues),
-    [filteredIssues],
+    () => getStoryPointsByAssignee(barIssues),
+    [barIssues],
   );
 
   const totalStoryPoints = useMemo(
-    () => getTotalStoryPoints(filteredIssues),
-    [filteredIssues],
+    () => getTotalStoryPoints(barIssues),
+    [barIssues],
   );
 
   if (authLoading) {
@@ -217,6 +232,13 @@ export default function Dashboard() {
           rows={storyPointRows}
           totalPoints={totalStoryPoints}
           boardLabel={BOARDS[activeTab].label}
+          selectedAssignee={activeFilters.assignee}
+          onSelectAssignee={(name) =>
+            setFilters((prev) => ({
+              ...prev,
+              [activeTab]: { ...prev[activeTab], assignee: name },
+            }))
+          }
         />
       )}
 
@@ -224,6 +246,7 @@ export default function Dashboard() {
         <FilterBar
           assignees={assignees}
           issueTypes={issueTypes}
+          statuses={statuses}
           filters={activeFilters}
           totalCount={activeBoard.issues.length}
           filteredCount={filteredIssues.length}
@@ -269,7 +292,7 @@ export default function Dashboard() {
       {!activeBoard.loading && activeBoard.issues.length > 0 && filteredIssues.length === 0 && (
         <div className="board active">
           <div className="empty-state" style={{ padding: 48 }}>
-            No issues match the current filters. Try adjusting team member, issue type, or date range.
+            No issues match the current filters. Try adjusting team member, issue type, status, or date range.
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import type { JiraIssue } from './types';
 export interface DashboardFilters {
   assignee: string;
   issueType: string;
+  statuses: string[];
   dateFrom: string;
   dateTo: string;
 }
@@ -10,6 +11,7 @@ export interface DashboardFilters {
 export const EMPTY_FILTERS: DashboardFilters = {
   assignee: '',
   issueType: '',
+  statuses: [],
   dateFrom: '',
   dateTo: '',
 };
@@ -24,6 +26,11 @@ export function getIssueTypes(issues: JiraIssue[]): string[] {
   return Array.from(types).sort((a, b) => a.localeCompare(b));
 }
 
+export function getStatuses(issues: JiraIssue[]): string[] {
+  const statuses = new Set(issues.map((i) => i.fields.status?.name || 'Unknown'));
+  return Array.from(statuses).sort((a, b) => a.localeCompare(b));
+}
+
 export function filterIssues(issues: JiraIssue[], filters: DashboardFilters): JiraIssue[] {
   return issues.filter((issue) => {
     if (filters.assignee) {
@@ -34,6 +41,11 @@ export function filterIssues(issues: JiraIssue[], filters: DashboardFilters): Ji
     if (filters.issueType) {
       const type = issue.fields.issuetype?.name || 'Other';
       if (type !== filters.issueType) return false;
+    }
+
+    if (filters.statuses.length > 0) {
+      const status = issue.fields.status?.name || 'Unknown';
+      if (!filters.statuses.includes(status)) return false;
     }
 
     if (filters.dateFrom || filters.dateTo) {
@@ -49,5 +61,11 @@ export function filterIssues(issues: JiraIssue[], filters: DashboardFilters): Ji
 }
 
 export function hasActiveFilters(filters: DashboardFilters): boolean {
-  return Boolean(filters.assignee || filters.issueType || filters.dateFrom || filters.dateTo);
+  return Boolean(
+    filters.assignee ||
+      filters.issueType ||
+      filters.statuses.length > 0 ||
+      filters.dateFrom ||
+      filters.dateTo,
+  );
 }

@@ -309,6 +309,104 @@ body {
   margin-left: auto;
   align-self: center;
 }
+.filter-group-status {
+  min-width: 200px;
+}
+.status-multi-wrap {
+  position: relative;
+}
+.status-multi-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 200px;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #172B4D;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+.status-multi-trigger:hover,
+.status-multi-trigger:focus {
+  border-color: #0052CC;
+  outline: none;
+}
+.status-multi-trigger.has-selection {
+  border-color: #0052CC;
+  color: #0052CC;
+  padding-right: 28px;
+}
+.status-multi-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-multi-chevron {
+  font-size: 10px;
+  color: #5E6C84;
+  flex-shrink: 0;
+}
+.status-multi-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #97A0AF;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.status-multi-clear:hover {
+  color: #172B4D;
+}
+.status-multi-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.status-multi-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #172B4D;
+  cursor: pointer;
+}
+.status-multi-option:hover,
+.status-multi-option.active {
+  background: #DEEBFF;
+  color: #0052CC;
+}
+.status-multi-option input {
+  accent-color: #0052CC;
+  cursor: pointer;
+}
+.status-multi-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #97A0AF;
+}
 
 /* ── STORY POINTS BAR ── */
 .story-points-bar {
@@ -369,6 +467,20 @@ body {
   min-width: 148px;
   max-width: 180px;
   flex: 0 0 auto;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.story-points-card:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.story-points-card.selected {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
 }
 .story-points-card-top {
   display: flex;

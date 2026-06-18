@@ -7,6 +7,7 @@ import { hasActiveFilters } from '@/lib/filters';
 interface Props {
   assignees: string[];
   issueTypes: string[];
+  statuses: string[];
   filters: DashboardFilters;
   totalCount: number;
   filteredCount: number;
@@ -17,6 +18,7 @@ interface Props {
 export default function FilterBar({
   assignees,
   issueTypes,
+  statuses,
   filters,
   totalCount,
   filteredCount,
@@ -25,9 +27,11 @@ export default function FilterBar({
 }: Props) {
   const [userQuery, setUserQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [draftDateFrom, setDraftDateFrom] = useState(filters.dateFrom);
   const [draftDateTo, setDraftDateTo] = useState(filters.dateTo);
   const userBoxRef = useRef<HTMLDivElement>(null);
+  const statusBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDraftDateFrom(filters.dateFrom);
@@ -41,8 +45,12 @@ export default function FilterBar({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (userBoxRef.current && !userBoxRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (userBoxRef.current && !userBoxRef.current.contains(target)) {
         setUserOpen(false);
+      }
+      if (statusBoxRef.current && !statusBoxRef.current.contains(target)) {
+        setStatusOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -79,8 +87,27 @@ export default function FilterBar({
     setDraftDateTo('');
     setUserQuery('');
     setUserOpen(false);
+    setStatusOpen(false);
     onClear();
   }
+
+  function toggleStatus(status: string) {
+    const next = filters.statuses.includes(status)
+      ? filters.statuses.filter((s) => s !== status)
+      : [...filters.statuses, status];
+    onApply({ ...filters, statuses: next });
+  }
+
+  function clearStatuses() {
+    onApply({ ...filters, statuses: [] });
+  }
+
+  const statusLabel =
+    filters.statuses.length === 0
+      ? 'All statuses'
+      : filters.statuses.length === 1
+        ? filters.statuses[0]
+        : `${filters.statuses.length} statuses selected`;
 
   return (
     <div className="filter-bar">
@@ -148,6 +175,60 @@ export default function FilterBar({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="filter-group filter-group-status" ref={statusBoxRef}>
+        <label htmlFor="filter-status">Status</label>
+        <div className="status-multi-wrap">
+          <button
+            id="filter-status"
+            type="button"
+            className={`status-multi-trigger${filters.statuses.length > 0 ? ' has-selection' : ''}`}
+            onClick={() => setStatusOpen((open) => !open)}
+            aria-expanded={statusOpen}
+            aria-haspopup="listbox"
+          >
+            <span className="status-multi-label">{statusLabel}</span>
+            {filters.statuses.length === 0 && (
+              <span className="status-multi-chevron" aria-hidden>
+                ▾
+              </span>
+            )}
+          </button>
+          {filters.statuses.length > 0 && (
+            <button
+              type="button"
+              className="status-multi-clear"
+              onClick={clearStatuses}
+              title="Clear status filter"
+            >
+              ×
+            </button>
+          )}
+          {statusOpen && (
+            <ul className="status-multi-dropdown" role="listbox" aria-multiselectable>
+              {statuses.length === 0 ? (
+                <li className="status-multi-empty">No statuses</li>
+              ) : (
+                statuses.map((status) => {
+                  const checked = filters.statuses.includes(status);
+                  return (
+                    <li key={status}>
+                      <label className={`status-multi-option${checked ? ' active' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleStatus(status)}
+                        />
+                        <span>{status}</span>
+                      </label>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="filter-group">
