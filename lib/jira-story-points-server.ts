@@ -1,4 +1,5 @@
-import { parseStoryPointValue, issueTypeHasStoryPoints } from './story-point-utils';
+import { STORY_POINTS_FIELD } from './constants';
+import { parseStoryPointValue } from './story-point-utils';
 
 interface JiraFieldMeta {
   id: string;
@@ -10,9 +11,6 @@ interface JiraFieldMeta {
 const fieldCache = new Map<string, string | null>();
 
 function pickStoryPointField(fields: JiraFieldMeta[]): string | null {
-  const envField = process.env.JIRA_STORY_POINTS_FIELD;
-  if (envField) return envField;
-
   const candidates = fields.filter((f) => {
     const name = f.name.toLowerCase();
     if (!/story\s*point/.test(name)) return false;
@@ -38,6 +36,8 @@ export async function getStoryPointFieldId(
   accessToken: string,
   host: string,
 ): Promise<string | null> {
+  if (STORY_POINTS_FIELD) return STORY_POINTS_FIELD;
+
   if (fieldCache.has(host)) return fieldCache.get(host)!;
 
   try {
@@ -64,10 +64,7 @@ export function extractStoryPoints(
   fields: Record<string, unknown>,
   fieldId: string | null,
 ): number {
-  const issueType = (fields.issuetype as { name?: string } | undefined)?.name;
-  if (!issueTypeHasStoryPoints(issueType)) return 0;
   if (!fieldId) return 0;
-
   return parseStoryPointValue(fields[fieldId]);
 }
 

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Micurato Team Sprint Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #172b4d; padding: 20px; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #172b4d; }
+  .jira-badge { background: #0052cc; color: white; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 4px; }
+  .last-updated { font-size: 12px; color: #6b778c; }
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-btn { background: white; border: 1px solid #dfe1e6; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #42526e; transition: all 0.15s; }
+  .filter-btn:hover { border-color: #0052cc; color: #0052cc; }
+  .filter-btn.active { background: #0052cc; color: white; border-color: #0052cc; }
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: white; border-radius: 8px; padding: 16px 20px; border: 1px solid #dfe1e6; }
+  .stat-label { font-size: 11px; font-weight: 600; color: #6b778c; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: #172b4d; }
+  .stat-sub { font-size: 12px; color: #6b778c; margin-top: 3px; }
+  .main-grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+  .section-title { font-size: 14px; font-weight: 600; color: #172b4d; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-title .count { background: #ebecf0; color: #42526e; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .team-section { background: white; border-radius: 8px; border: 1px solid #dfe1e6; padding: 20px; }
+  .member-group { margin-bottom: 20px; }
+  .member-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f4f5f7; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
+  .member-name { font-size: 14px; font-weight: 600; color: #172b4d; }
+  .member-count { font-size: 12px; color: #6b778c; margin-left: auto; }
+  .issue-list { display: flex; flex-direction: column; gap: 6px; }
+  .issue-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 6px; background: #f8f9fa; border: 1px solid transparent; transition: all 0.1s; }
+  .issue-item:hover { border-color: #dfe1e6; background: white; }
+  .issue-key { font-size: 11px; font-weight: 600; color: #0052cc; white-space: nowrap; min-width: 80px; text-decoration: none; }
+  .issue-key:hover { text-decoration: underline; }
+  .issue-summary { font-size: 12px; color: #172b4d; flex: 1; line-height: 1.4; }
+  .status-pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px; }
+  .project-tag { font-size: 10px; color: #6b778c; background: #ebecf0; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+  .chart-card { background: white; border-radius: 8px; border: 1px solid #dfe1e6; padding: 20px; }
+  .chart-container { position: relative; height: 180px; }
+  .project-list { display: flex; flex-direction: column; gap: 8px; }
+  .project-item { display: flex; align-items: center; gap: 8px; }
+  .project-bar-wrap { flex: 1; }
+  .project-bar-bg { height: 6px; background: #ebecf0; border-radius: 3px; overflow: hidden; }
+  .project-bar-fill { height: 100%; border-radius: 3px; background: #0052cc; }
+  .project-name { font-size: 12px; color: #42526e; min-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .project-num { font-size: 12px; color: #6b778c; min-width: 24px; text-align: right; }
+  .loading { text-align: center; padding: 60px 20px; color: #6b778c; font-size: 14px; }
+  .loading-spinner { width: 32px; height: 32px; border: 3px solid #ebecf0; border-top-color: #0052cc; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { background: #fff3f3; border: 1px solid #ffbdbd; border-radius: 8px; padding: 16px; color: #de350b; font-size: 13px; }
+  .s-inprogress { background: #deebff; color: #0747a6; }
+  .s-done { background: #e3fcef; color: #006644; }
+  .s-todo { background: #f4f5f7; color: #42526e; }
+  .s-review { background: #eae6ff; color: #403294; }
+  .s-qa { background: #fff0b3; color: #7a4100; }
+  .s-devprog { background: #deebff; color: #0747a6; }
+  .s-codereview { background: #eae6ff; color: #403294; }
+  .s-onhold { background: #ffebe6; color: #bf2600; }
+  .s-cancelled { background: #f4f5f7; color: #97a0af; }
+  .s-verified { background: #e3fcef; color: #006644; }
+  .s-new { background: #fffae6; color: #6554c0; }
+  .av-0 { background: #0052cc; } .av-1 { background: #00875a; } .av-2 { background: #6554c0; }
+  .av-3 { background: #de350b; } .av-4 { background: #ff8b00; } .av-5 { background: #00b8d9; }
+  .av-6 { background: #36b37e; } .av-7 { background: #0747a6; } .av-8 { background: #bf2600; }
+  .av-9 { background: #403294; } .av-10 { background: #008da6; } .av-11 { background: #b8870a; }
+  .av-12 { background: #5e4db2; } .av-13 { background: #ae2e24; } .av-14 { background: #0055cc; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🚀 Micurato Team Sprint Dashboard</h1>
+    <div class="last-updated" id="lastUpdated">Loading…</div>
+  </div>
+  <div><span class="jira-badge">micurato.atlassian.net</span></div>
+</div>
+<div id="filterBar" class="filter-bar" style="display:none"><button class="filter-btn active" onclick="filterMember('all')">All Members</button></div>
+<div id="statsRow" class="stats-row" style="display:none">
+  <div class="stat-card"><div class="stat-label">Total Issues</div><div class="stat-value" id="totalCount">—</div><div class="stat-sub">in open sprints</div></div>
+  <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value" id="inProgressCount" style="color:#0747a6">—</div><div class="stat-sub">actively worked on</div></div>
+  <div class="stat-card"><div class="stat-label">Done / Verified</div><div class="stat-value" id="doneCount" style="color:#006644">—</div><div class="stat-sub">sprint achievements</div></div>
+  <div class="stat-card"><div class="stat-label">Team Members</div><div class="stat-value" id="memberCount" style="color:#6554c0">—</div><div class="stat-sub">active this sprint</div></div>
+</div>
+<div id="loadingDiv" class="loading"><div class="loading-spinner"></div>Fetching sprint data from Jira…</div>
+<div id="errorDiv" style="display:none"></div>
+<div id="mainContent" style="display:none">
+  <div class="main-grid">
+    <div class="team-section">
+      <div class="section-title">Team Workload <span class="count" id="teamIssueCount">0</span></div>
+      <div id="teamGrid"></div>
+    </div>
+    <div class="right-panel">
+      <div class="chart-card">
+        <div class="section-title">Sprint Progress</div>
+        <div class="chart-container"><canvas id="statusChart"></canvas></div>
+        <div id="chartLegend" style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:11px;color:#6b778c"></div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title">By Project <span class="count" id="projCountBadge">0</span></div>
+        <div class="project-list" id="projectList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const CLOUD_ID = "41b49471-8c97-4ba5-a11b-a595e5ede351";
+const BASE_URL = "https://micurato.atlassian.net";
+let allIssues = [], chartInstance = null;
+const AV_COLORS = ['av-0','av-1','av-2','av-3','av-4','av-5','av-6','av-7','av-8','av-9','av-10','av-11','av-12','av-13','av-14'];
+const memberColors = {}; let cIdx = 0;
+function avClass(n){ if(!memberColors[n]) memberColors[n]=AV_COLORS[cIdx++%15]; return memberColors[n]; }
+function initials(n){ return n.split(' ').map(p=>p[0]).join('').substring(0,2).toUpperCase(); }
+function sPill(s){
+  const m={'In Progress':'s-inprogress','DEVELOPMENT IN PROGRESS':'s-devprog','Done':'s-done','Verification Passed':'s-verified','To Do':'s-todo','In Review':'s-review','READY FOR QA':'s-qa','IN CODE REVIEW':'s-codereview','ON-HOLD':'s-onhold','Cancelled':'s-cancelled','New':'s-new'};
+  return m[s]||'s-todo';
+}
+function sPriority(s){
+  if(['In Progress','DEVELOPMENT IN PROGRESS'].includes(s)) return 0;
+  if(['To Do','In Review','READY FOR QA','IN CODE REVIEW','New'].includes(s)) return 1;
+  if(['Done','Verification Passed'].includes(s)) return 2;
+  return 3;
+}
+function renderDashboard(issues){
+  allIssues = issues;
+  const inProgress = issues.filter(i=>['In Progress','DEVELOPMENT IN PROGRESS','IN CODE REVIEW'].includes(i.status)).length;
+  const done = issues.filter(i=>['Done','Verification Passed'].includes(i.status)).length;
+  const members = [...new Set(issues.map(i=>i.assignee))];
+  document.getElementById('totalCount').textContent = issues.length;
+  document.getElementById('inProgressCount').textContent = inProgress;
+  document.getElementById('doneCount').textContent = done;
+  document.getElementById('memberCount').textContent = members.length;
+  document.getElementById('statsRow').style.display = 'grid';
+  const filterBar = document.getElementById('filterBar');
+  filterBar.style.display = 'flex';
+  filterBar.querySelectorAll('.filter-btn:not(:first-child)').forEach(b=>b.remove());
+  members.sort().forEach(m=>{
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn'; btn.textContent = m.split(' ')[0];
+    btn.title = m; btn.onclick = ()=>filterMember(m, btn);
+    filterBar.appendChild(btn);
+  });
+  renderTeam(issues); renderChart(issues); renderProjects(issues);
+  document.getElementById('loadingDiv').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+function filterMember(member, btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  (btn||document.querySelector('.filter-btn')).classList.add('active');
+  const f = member==='all' ? allIssues : allIssues.filter(i=>i.assignee===member);
+  renderTeam(f); renderChart(f); renderProjects(f);
+}
+function renderTeam(issues){
+  const byM={};
+  issues.forEach(i=>{ (byM[i.assignee]=byM[i.assignee]||[]).push(i); });
+  const sorted=Object.entries(byM).sort((a,b)=>b[1].length-a[1].length);
+  document.getElementById('teamIssueCount').textContent = issues.length;
+  document.getElementById('teamGrid').innerHTML = sorted.map(([name,mis])=>{
+    mis.sort((a,b)=>sPriority(a.status)-sPriority(b.status));
+    return `<div class="member-group">
+      <div class="member-header">
+        <div class="avatar ${avClass(name)}">${initials(name)}</div>
+        <div class="member-name">${name}</div>
+        <div class="member-count">${mis.length} issue${mis.length!==1?'s':''}</div>
+      </div>
+      <div class="issue-list">${mis.map(i=>`<div class="issue-item">
+        <a class="issue-key" href="${BASE_URL}/browse/${i.key}" target="_blank">${i.key}</a>
+        <div class="issue-summary">${i.summary}</div>
+        <span class="project-tag">${i.projectKey}</span>
+        <span class="status-pill ${sPill(i.status)}">${i.status}</span>
+      </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function renderChart(issues){
+  const sc={};
+  issues.forEach(i=>{ sc[i.status]=(sc[i.status]||0)+1; });
+  const COLS={'In Progress':'#0052cc','DEVELOPMENT IN PROGRESS':'#1168e3','Done':'#36b37e','Verification Passed':'#00875a','To Do':'#97a0af','In Review':'#6554c0','READY FOR QA':'#ffab00','IN CODE REVIEW':'#403294','ON-HOLD':'#de350b','Cancelled':'#c8cfd8','New':'#8777d9'};
+  const labels=Object.keys(sc), data=Object.values(sc), colors=labels.map(l=>COLS[l]||'#97a0af');
+  const ctx=document.getElementById('statusChart').getContext('2d');
+  if(chartInstance) chartInstance.destroy();
+  chartInstance=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},options:{cutout:'65%',plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});
+  document.getElementById('chartLegend').innerHTML=labels.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${colors[i]}"></span>${l} ${data[i]}</span>`).join('');
+}
+function renderProjects(issues){
+  const pc={};
+  issues.forEach(i=>{ pc[i.project]=(pc[i.project]||0)+1; });
+  const sorted=Object.entries(pc).sort((a,b)=>b[1]-a[1]);
+  const max=sorted[0]?.[1]||1;
+  document.getElementById('projCountBadge').textContent=sorted.length;
+  document.getElementById('projectList').innerHTML=sorted.map(([name,cnt])=>`<div class="project-item">
+    <div class="project-name" title="${name}">${name}</div>
+    <div class="project-bar-wrap"><div class="project-bar-bg"><div class="project-bar-fill" style="width:${Math.round(cnt/max*100)}%"></div></div></div>
+    <div class="project-num">${cnt}</div>
+  </div>`).join('');
+}
+async function loadData(){
+  try {
+    const result = await window.cowork.callMcpTool(
+      "mcp__766b8412-ce25-4573-b5ad-6e9834f1e92f__searchJiraIssuesUsingJql",
+      { cloudId: CLOUD_ID, jql: "sprint in openSprints() ORDER BY assignee ASC", fields: ["summary","status","assignee","priority","issuetype","project","updated"], maxResults: 100, responseContentFormat: "markdown" }
+    );
+    const nodes = result?.issues?.nodes || [];
+    if(!nodes.length){ throw new Error('No open sprint issues found.'); }
+    const issues = nodes.map(n=>({
+      key: n.key, summary: n.fields.summary, status: n.fields.status?.name||'Unknown',
+      assignee: n.fields.assignee?.displayName||'Unassigned', project: n.fields.project?.name||'Unknown',
+      projectKey: n.fields.project?.key||'?', priority: n.fields.priority?.name||'Medium'
+    }));
+    renderDashboard(issues);
+  } catch(err){
+    document.getElementById('loadingDiv').style.display='none';
+    document.getElementById('errorDiv').style.display='block';
+    document.getElementById('errorDiv').innerHTML=`<div class="error-msg">Error: ${err.message||err}</div>`;
+  }
+}
+loadData();
+</script>
+</body>
+</html>

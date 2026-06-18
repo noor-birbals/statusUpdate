@@ -29,10 +29,3 @@ export function formatStoryPoints(points: number): string {
   // Preserve values like 0.25 — show up to 2 decimals, trim trailing zeros
   return parseFloat(points.toFixed(2)).toString();
 }
-
-export function issueTypeHasStoryPoints(issueTypeName?: string): boolean {
-  const type = (issueTypeName || '').toLowerCase().trim();
-  if (!type) return true;
-  const excluded = ['bug', 'sub-task', 'subtask', 'sub task', 'epic'];
-  return !excluded.some((t) => type === t || type.includes(t));
-}

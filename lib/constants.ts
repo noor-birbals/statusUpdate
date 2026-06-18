@@ -7,6 +7,10 @@ export type BoardId = keyof typeof BOARDS;
 
 export const JQL = 'sprint in openSprints() ORDER BY assignee ASC';
 
+/** Story points custom field — override via JIRA_STORY_POINTS_FIELD in .env.local */
+export const STORY_POINTS_FIELD =
+  process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10032';
+
 export const JIRA_FIELDS = [
   'summary',
   'status',

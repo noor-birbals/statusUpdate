@@ -1,4 +1,4 @@
-import { parseStoryPointValue, formatStoryPoints, issueTypeHasStoryPoints } from './story-point-utils';
+import { parseStoryPointValue, formatStoryPoints } from './story-point-utils';
 import type { JiraIssue } from './types';
 
 export { formatStoryPoints };
@@ -10,13 +10,10 @@ export interface AssigneeStoryPoints {
 }
 
 export function getStoryPoints(issue: JiraIssue): number {
-  if (!issueTypeHasStoryPoints(issue.fields.issuetype?.name)) return 0;
-
   const fields = issue.fields as Record<string, unknown>;
   if (fields.storyPoints != null) {
     return parseStoryPointValue(fields.storyPoints);
   }
-
   return 0;
 }
 
