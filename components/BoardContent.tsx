@@ -1,4 +1,5 @@
 import type { BoardStats, JiraIssue, SprintInfo } from '@/lib/types';
+import AllIssuesTable from './AllIssuesTable';
 import BoardCharts from './BoardCharts';
 import BlockersTable from './BlockersTable';
 
@@ -79,6 +80,14 @@ export default function BoardContent({ boardId, host, stats, issues, showProject
           <BlockersTable host={host} stats={stats} />
         </div>
       )}
+
+      <div className="table-card">
+        <div className="chart-title">
+          All Sprint Issues
+          <span className="chart-sub">{issues.length} tickets</span>
+        </div>
+        <AllIssuesTable host={host} issues={issues} />
+      </div>
     </>
   );
 }
