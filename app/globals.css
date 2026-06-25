@@ -759,108 +759,115 @@ body {
 
 /* ── REPORT COVER ── */
 .report-cover {
-  background: #0052CC;
+  background: linear-gradient(135deg, #0052CC 0%, #0747A6 100%);
   color: #fff;
   border-radius: 12px;
-  padding: 36px 40px;
+  padding: 40px 48px;
   text-align: center;
 }
-.report-cover-title { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
-.report-cover-sub { font-size: 16px; opacity: 0.85; margin-bottom: 10px; }
-.report-cover-date { font-size: 13px; opacity: 0.65; }
+.report-cover-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 10px;
+}
+.report-cover-title { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+.report-cover-sub { font-size: 17px; opacity: 0.85; margin-bottom: 12px; font-weight: 500; }
+.report-cover-date { font-size: 13px; opacity: 0.55; }
 
-/* ── REPORT SUMMARY STRIP ── */
-.report-summary-strip {
+/* ── REPORT SECTION HEADING ── */
+.report-section-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6B778C;
+  margin-bottom: -12px;
+}
+
+/* ── SPRINT HEALTH GRID ── */
+.report-health-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
-.report-summary-card {
+.report-health-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  text-align: center;
+}
+.report-health-value { font-size: 30px; font-weight: 800; color: #172B4D; line-height: 1; }
+.report-health-label { font-size: 12px; font-weight: 700; color: #172B4D; margin-top: 6px; }
+.report-health-sub { font-size: 11px; color: #97A0AF; margin-top: 3px; }
+
+/* ── PROGRESS CARD ── */
+.report-progress-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* ── PEOPLE GRID ── */
+.report-people-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.report-person-card {
   background: #fff;
   border-radius: 10px;
   padding: 18px 20px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  text-align: center;
-}
-.report-summary-value { font-size: 28px; font-weight: 800; color: #172B4D; }
-.report-summary-label { font-size: 12px; color: #6B778C; margin-top: 4px; font-weight: 500; }
-
-/* ── REPORT PERSON ── */
-.report-person {
-  background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  page-break-inside: avoid;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  page-break-inside: avoid;
+  gap: 14px;
 }
-.report-person-header {
+.report-person-card-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #F0F2F5;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F0F2F5;
 }
 .report-person-avatar {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: #0052CC;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.report-person-name { font-size: 17px; font-weight: 700; color: #172B4D; }
-.report-person-meta { font-size: 12px; color: #6B778C; margin-top: 3px; }
+.report-person-name { font-size: 15px; font-weight: 700; color: #172B4D; }
+.report-person-meta { font-size: 12px; color: #6B778C; margin-top: 2px; }
 
-/* ── REPORT SECTION ── */
-.report-section { display: flex; flex-direction: column; gap: 8px; }
-.report-section-header {
+/* ── PERSON STATS ── */
+.report-person-stats { display: flex; flex-direction: column; gap: 10px; }
+.report-stat-row { display: flex; flex-direction: column; gap: 2px; }
+.report-stat-label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-left: 3px solid #0052CC;
-  padding-left: 10px;
-}
-.report-section-title { font-size: 13px; font-weight: 700; color: #172B4D; text-transform: uppercase; letter-spacing: 0.5px; }
-.report-section-count { font-size: 12px; color: #6B778C; }
-
-/* ── REPORT TABLE ── */
-.report-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.report-table th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 700;
-  color: #6B778C;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 6px 10px;
-  border-bottom: 1px solid #DFE1E6;
-}
-.report-table td { padding: 8px 10px; border-bottom: 1px solid #F4F5F7; vertical-align: top; }
-.report-table tr:last-child td { border-bottom: none; }
-.report-key a { color: #0052CC; font-weight: 600; text-decoration: none; font-size: 12px; white-space: nowrap; }
-.report-key a:hover { text-decoration: underline; }
-.report-summary { color: #172B4D; line-height: 1.4; }
-.report-points { color: #6B778C; text-align: center; white-space: nowrap; }
-.report-status { white-space: nowrap; }
-.report-status-chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  color: #fff;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
+  color: #42526E;
+}
+.report-type-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 /* ── PRINT STYLES ── */
@@ -869,10 +876,10 @@ body {
   .no-print { display: none !important; }
   .report-overlay { position: static; background: none; }
   .report-modal { max-width: 100%; box-shadow: none; }
-  .report-body { overflow: visible; padding: 0; }
+  .report-body { overflow: visible; padding: 0; gap: 16px; }
   .report-toolbar { display: none; }
   .report-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .report-person { page-break-inside: avoid; box-shadow: none; border: 1px solid #DFE1E6; }
-  .report-summary-strip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .report-status-chip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report-health-grid { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report-person-card { page-break-inside: avoid; box-shadow: none; border: 1px solid #DFE1E6; }
+  .report-people-grid { grid-template-columns: repeat(2, 1fr); }
 }
