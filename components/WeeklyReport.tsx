@@ -14,9 +14,9 @@ interface Props {
 interface AssigneeSummary {
   name: string;
   initials: string;
-  tasks: { done: number; total: number };
-  subtasks: { done: number; total: number };
-  bugs: { done: number; total: number };
+  tasks: { done: number; total: number; issues: JiraIssue[] };
+  subtasks: { done: number; total: number; issues: JiraIssue[] };
+  bugs: { done: number; total: number; issues: JiraIssue[] };
   storyPoints: number;
   blocked: number;
 }
@@ -33,6 +33,20 @@ function getInitials(name: string) {
   return name.split(' ').map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
 }
 
+function roundSP(val: number): string {
+  const r = Math.round(val * 10) / 10;
+  return r % 1 === 0 ? String(r) : r.toFixed(1);
+}
+
+function statusChipColor(issue: JiraIssue): string {
+  const cat = classify(issue.fields.status?.name || '');
+  if (cat === 'done') return '#00875A';
+  if (cat === 'inprogress' || cat === 'codereview') return '#0052CC';
+  if (cat === 'review' || cat === 'qa') return '#FF8B00';
+  if (cat === 'blocked') return '#DE350B';
+  return '#97A0AF';
+}
+
 function buildSummaries(issues: JiraIssue[]): AssigneeSummary[] {
   const map = new Map<string, AssigneeSummary>();
 
@@ -42,9 +56,9 @@ function buildSummaries(issues: JiraIssue[]): AssigneeSummary[] {
       map.set(name, {
         name,
         initials: getInitials(name),
-        tasks: { done: 0, total: 0 },
-        subtasks: { done: 0, total: 0 },
-        bugs: { done: 0, total: 0 },
+        tasks: { done: 0, total: 0, issues: [] },
+        subtasks: { done: 0, total: 0, issues: [] },
+        bugs: { done: 0, total: 0, issues: [] },
         storyPoints: 0,
         blocked: 0,
       });
@@ -56,16 +70,19 @@ function buildSummaries(issues: JiraIssue[]): AssigneeSummary[] {
     const sp = issue.fields.storyPoints ?? 0;
 
     if (blocked) s.blocked++;
-    if (done && sp > 0) s.storyPoints += sp;
+    if (done && sp > 0) s.storyPoints = Math.round((s.storyPoints + sp) * 10) / 10;
 
     if (typeName.includes('bug')) {
       s.bugs.total++;
+      s.bugs.issues.push(issue);
       if (done) s.bugs.done++;
     } else if (typeName.includes('sub-task') || typeName.includes('subtask')) {
       s.subtasks.total++;
+      s.subtasks.issues.push(issue);
       if (done) s.subtasks.done++;
     } else {
       s.tasks.total++;
+      s.tasks.issues.push(issue);
       if (done) s.tasks.done++;
     }
   }
@@ -86,10 +103,12 @@ function overallStats(issues: JiraIssue[]) {
   const blocked = issues.filter(isBlocked).length;
   const total = issues.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const sp = issues.filter(isDone).reduce((sum, i) => sum + (i.fields.storyPoints ?? 0), 0);
+  const spRaw = issues.filter(isDone).reduce((sum, i) => sum + (i.fields.storyPoints ?? 0), 0);
+  const sp = Math.round(spRaw * 10) / 10;
   const bugs = issues.filter((i) => (i.fields.issuetype?.name || '').toLowerCase().includes('bug'));
   const bugsFixed = bugs.filter(isDone).length;
-  return { done, blocked, total, pct, sp, bugsFixed, contributors: new Set(issues.map((i) => i.fields.assignee?.displayName || 'Unassigned')).size };
+  const contributors = new Set(issues.map((i) => i.fields.assignee?.displayName || 'Unassigned')).size;
+  return { done, blocked, total, pct, sp, bugsFixed, contributors };
 }
 
 interface MiniBarProps { value: number; total: number; color: string; }
@@ -102,13 +121,38 @@ function MiniBar({ value, total, color }: MiniBarProps) {
         <span>{pct}%</span>
       </div>
       <div style={{ height: 6, background: '#F0F2F5', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.4s' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3 }} />
       </div>
     </div>
   );
 }
 
-export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
+interface TicketFooterProps { issues: JiraIssue[]; host: string; label: string; color: string; }
+function TicketFooter({ issues, host, label, color }: TicketFooterProps) {
+  if (!issues.length) return null;
+  return (
+    <div className="report-ticket-footer">
+      <div className="report-ticket-footer-label" style={{ color }}>{label}</div>
+      <div className="report-ticket-list">
+        {issues.map((issue) => (
+          <a
+            key={issue.key}
+            href={`https://${host}/browse/${issue.key}`}
+            target="_blank"
+            rel="noreferrer"
+            className="report-ticket-chip"
+            title={issue.fields.summary || ''}
+            style={{ borderColor: statusChipColor(issue), color: statusChipColor(issue) }}
+          >
+            {issue.key}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function WeeklyReport({ issues, boardLabel, host, onClose }: Props) {
   const reportRef = useRef<HTMLDivElement>(null);
   const summaries = useMemo(() => buildSummaries(issues), [issues]);
   const sprint = useMemo(() => sprintName(issues), [issues]);
@@ -140,7 +184,7 @@ export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
             <div className="report-cover-date">{today}</div>
           </div>
 
-          {/* Sprint health overview */}
+          {/* Sprint health */}
           <div className="report-section-heading">Sprint Health</div>
           <div className="report-health-grid">
             <div className="report-health-card">
@@ -149,7 +193,7 @@ export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
               <div className="report-health-sub">{overall.done} of {overall.total} issues done</div>
             </div>
             <div className="report-health-card">
-              <div className="report-health-value">{overall.sp > 0 ? overall.sp : '—'}</div>
+              <div className="report-health-value">{overall.sp > 0 ? roundSP(overall.sp) : '—'}</div>
               <div className="report-health-label">Story Points Delivered</div>
               <div className="report-health-sub">Across completed issues</div>
             </div>
@@ -184,7 +228,7 @@ export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
             </div>
           </div>
 
-          {/* Per-person summaries */}
+          {/* Per-person */}
           <div className="report-section-heading">Individual Contributions</div>
           <div className="report-people-grid">
             {summaries.map((s) => {
@@ -200,7 +244,7 @@ export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
                       <div className="report-person-name">{s.name}</div>
                       <div className="report-person-meta">
                         {totalDone}/{totalAll} done · {personPct}%
-                        {s.storyPoints > 0 && ` · ${s.storyPoints} SP delivered`}
+                        {s.storyPoints > 0 && ` · ${roundSP(s.storyPoints)} SP`}
                         {s.blocked > 0 && <span style={{ color: '#DE350B' }}> · {s.blocked} blocked</span>}
                       </div>
                     </div>
@@ -234,6 +278,13 @@ export default function WeeklyReport({ issues, boardLabel, onClose }: Props) {
                         <MiniBar value={s.bugs.done} total={s.bugs.total} color="#DE350B" />
                       </div>
                     )}
+                  </div>
+
+                  {/* Jira links footer */}
+                  <div className="report-tickets-section">
+                    <TicketFooter issues={s.tasks.issues} host={host} label="Tasks" color="#0052CC" />
+                    <TicketFooter issues={s.subtasks.issues} host={host} label="Sub-tasks" color="#6554C0" />
+                    <TicketFooter issues={s.bugs.issues} host={host} label="Bugs" color="#DE350B" />
                   </div>
                 </div>
               );
