@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidSession } from '@/lib/atlassian-oauth';
-import { JIRA_FIELDS } from '@/lib/constants';
+import { JIRA_FIELDS, SPRINT_FIELD } from '@/lib/constants';
 import {
   getStoryPointFieldId,
   normalizeIssueStoryPoints,
 } from '@/lib/jira-story-points-server';
+import type { SprintInfo } from '@/lib/types';
+
+function normalizeIssueSprint(issue: { key: string; fields: Record<string, unknown> }) {
+  const raw = issue.fields[SPRINT_FIELD];
+  delete issue.fields[SPRINT_FIELD];
+  if (Array.isArray(raw) && raw.length > 0) {
+    const active = (raw as SprintInfo[]).find((s) => s.state === 'active') ?? (raw as SprintInfo[])[raw.length - 1];
+    issue.fields.sprint = { id: active.id, name: active.name, state: active.state, startDate: active.startDate, endDate: active.endDate };
+  } else {
+    issue.fields.sprint = null;
+  }
+  return issue;
+}
 
 export async function POST(request: NextRequest) {
   const session = await getValidSession();
@@ -76,9 +89,11 @@ export async function POST(request: NextRequest) {
     };
 
     if (data.issues) {
-      data.issues = data.issues.map((issue) =>
-        normalizeIssueStoryPoints(issue, storyPointFieldId),
-      );
+      data.issues = data.issues.map((issue) => {
+        normalizeIssueStoryPoints(issue, storyPointFieldId);
+        normalizeIssueSprint(issue);
+        return issue;
+      });
     }
 
     return NextResponse.json(data);

@@ -11,6 +11,8 @@ export const JQL = 'sprint in openSprints() ORDER BY assignee ASC';
 export const STORY_POINTS_FIELD =
   process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10032';
 
+export const SPRINT_FIELD = 'customfield_10020';
+
 export const JIRA_FIELDS = [
   'summary',
   'status',
@@ -19,6 +21,8 @@ export const JIRA_FIELDS = [
   'project',
   'priority',
   'updated',
+  'parent',
+  SPRINT_FIELD,
 ] as const;
 
 export const PALETTE = [

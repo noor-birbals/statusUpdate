@@ -1,4 +1,4 @@
-import type { BoardStats, JiraIssue } from '@/lib/types';
+import type { BoardStats, JiraIssue, SprintInfo } from '@/lib/types';
 import AllIssuesTable from './AllIssuesTable';
 import BoardCharts from './BoardCharts';
 import BlockersTable from './BlockersTable';
@@ -10,11 +10,23 @@ interface Props {
   stats: BoardStats;
   issues: JiraIssue[];
   showProjects?: boolean;
+  sprintInfo?: SprintInfo | null;
 }
 
-export default function BoardContent({ boardId, host, stats, issues, showProjects }: Props) {
+export default function BoardContent({ boardId, host, stats, issues, showProjects, sprintInfo }: Props) {
   return (
     <>
+      {sprintInfo && (
+        <div className="sprint-badge">
+          <span className="sprint-badge-label">Sprint</span>
+          <span className="sprint-badge-name">{sprintInfo.name}</span>
+          {sprintInfo.endDate && (
+            <span className="sprint-badge-end">
+              ends {new Date(sprintInfo.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </span>
+          )}
+        </div>
+      )}
       <div className="kpi-strip">
         <div className="kpi-card blue">
           <div className="kpi-value">{stats.total}</div>

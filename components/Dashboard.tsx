@@ -12,6 +12,7 @@ import BoardContent from './BoardContent';
 import FilterBar from './FilterBar';
 import LoginScreen from './LoginScreen';
 import StoryPointsBar from './StoryPointsBar';
+import WeeklyReport from './WeeklyReport';
 
 interface BoardState {
   loading: boolean;
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   const [headerSub, setHeaderSub] = useState('Sign in to load sprint data');
+  const [showReport, setShowReport] = useState(false);
   const [filters, setFilters] = useState<Record<BoardId, DashboardFilters>>(defaultFilters);
   const [boards, setBoards] = useState<Record<BoardId, BoardState>>({
     mic: { ...emptyBoard },
@@ -209,6 +211,13 @@ export default function Dashboard() {
           <button className="hbtn" disabled={refreshing} onClick={loadAll}>
             {refreshing ? '↻ Loading…' : '↻ Refresh'}
           </button>
+          <button
+            className="hbtn hbtn-report"
+            onClick={() => setShowReport(true)}
+            disabled={!activeBoard.issues.length}
+          >
+            ⬇ Weekly Report
+          </button>
           <button className="hbtn" onClick={handleLogout}>
             Sign out
           </button>
@@ -261,6 +270,8 @@ export default function Dashboard() {
         const issues = filterIssues(board.issues, boardFilters);
         const stats = board.issues.length ? aggregateIssues(issues) : null;
 
+        const sprintInfo = board.issues.find((i) => i.fields.sprint)?.fields.sprint ?? null;
+
         return (
           <div key={id} className={`board${activeTab === id ? ' active' : ''}`}>
             {board.error && (
@@ -283,6 +294,7 @@ export default function Dashboard() {
                 stats={stats}
                 issues={issues}
                 showProjects={id === 'bib'}
+                sprintInfo={sprintInfo}
               />
             )}
           </div>
@@ -295,6 +307,15 @@ export default function Dashboard() {
             No issues match the current filters. Try adjusting team member, issue type, status, or date range.
           </div>
         </div>
+      )}
+
+      {showReport && (
+        <WeeklyReport
+          issues={activeBoard.issues}
+          boardLabel={BOARDS[activeTab].label}
+          host={BOARDS[activeTab].host}
+          onClose={() => setShowReport(false)}
+        />
       )}
     </>
   );

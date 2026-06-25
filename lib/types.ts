@@ -1,3 +1,11 @@
+export interface SprintInfo {
+  id: number;
+  name: string;
+  state: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface JiraIssue {
   key: string;
   fields: {
@@ -9,6 +17,8 @@ export interface JiraIssue {
     priority?: { name: string };
     updated?: string;
     storyPoints?: number;
+    sprint?: SprintInfo | null;
+    parent?: { key: string; fields?: { summary?: string; issuetype?: { name: string } } } | null;
   };
 }
 
