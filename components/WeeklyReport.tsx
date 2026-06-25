@@ -17,6 +17,7 @@ interface AssigneeSummary {
   tasks: { done: number; total: number; issues: JiraIssue[] };
   subtasks: { done: number; total: number; issues: JiraIssue[] };
   bugs: { done: number; total: number; issues: JiraIssue[] };
+  allIssues: JiraIssue[];
   storyPoints: number;
   blocked: number;
 }
@@ -59,6 +60,7 @@ function buildSummaries(issues: JiraIssue[]): AssigneeSummary[] {
         tasks: { done: 0, total: 0, issues: [] },
         subtasks: { done: 0, total: 0, issues: [] },
         bugs: { done: 0, total: 0, issues: [] },
+        allIssues: [],
         storyPoints: 0,
         blocked: 0,
       });
@@ -69,6 +71,7 @@ function buildSummaries(issues: JiraIssue[]): AssigneeSummary[] {
     const blocked = isBlocked(issue);
     const sp = issue.fields.storyPoints ?? 0;
 
+    s.allIssues.push(issue);
     if (blocked) s.blocked++;
     if (done && sp > 0) s.storyPoints = Math.round((s.storyPoints + sp) * 10) / 10;
 
@@ -280,11 +283,9 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
                     )}
                   </div>
 
-                  {/* Jira links footer */}
+                  {/* Jira links footer — all tickets */}
                   <div className="report-tickets-section">
-                    <TicketFooter issues={s.tasks.issues} host={host} label="Tasks" color="#0052CC" />
-                    <TicketFooter issues={s.subtasks.issues} host={host} label="Sub-tasks" color="#6554C0" />
-                    <TicketFooter issues={s.bugs.issues} host={host} label="Bugs" color="#DE350B" />
+                    <TicketFooter issues={s.allIssues} host={host} label="All Tickets" color="#42526E" />
                   </div>
                 </div>
               );
