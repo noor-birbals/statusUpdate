@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DashboardFilters } from '@/lib/filters';
 import { hasActiveFilters } from '@/lib/filters';
+import type { SprintInfo } from '@/lib/types';
 
 interface Props {
   assignees: string[];
@@ -11,6 +12,9 @@ interface Props {
   filters: DashboardFilters;
   totalCount: number;
   filteredCount: number;
+  sprints?: SprintInfo[];
+  selectedSprint?: SprintInfo | null;
+  onSprintChange?: (sprint: SprintInfo | null) => void;
   onApply: (filters: DashboardFilters) => void;
   onClear: () => void;
 }
@@ -22,16 +26,21 @@ export default function FilterBar({
   filters,
   totalCount,
   filteredCount,
+  sprints = [],
+  selectedSprint = null,
+  onSprintChange,
   onApply,
   onClear,
 }: Props) {
   const [userQuery, setUserQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [sprintOpen, setSprintOpen] = useState(false);
   const [draftDateFrom, setDraftDateFrom] = useState(filters.dateFrom);
   const [draftDateTo, setDraftDateTo] = useState(filters.dateTo);
   const userBoxRef = useRef<HTMLDivElement>(null);
   const statusBoxRef = useRef<HTMLDivElement>(null);
+  const sprintBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDraftDateFrom(filters.dateFrom);
@@ -52,6 +61,9 @@ export default function FilterBar({
       if (statusBoxRef.current && !statusBoxRef.current.contains(target)) {
         setStatusOpen(false);
       }
+      if (sprintBoxRef.current && !sprintBoxRef.current.contains(target)) {
+        setSprintOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -64,7 +76,6 @@ export default function FilterBar({
   const datesDirty =
     draftDateFrom !== filters.dateFrom || draftDateTo !== filters.dateTo;
   const hasDraftDates = Boolean(draftDateFrom || draftDateTo);
-  const active = hasActiveFilters(filters);
 
   function selectUser(name: string) {
     onApply({ ...filters, assignee: name });
@@ -88,6 +99,7 @@ export default function FilterBar({
     setUserQuery('');
     setUserOpen(false);
     setStatusOpen(false);
+    setSprintOpen(false);
     onClear();
   }
 
@@ -109,8 +121,64 @@ export default function FilterBar({
         ? filters.statuses[0]
         : `${filters.statuses.length} statuses selected`;
 
+  const sprintLabel = selectedSprint ? selectedSprint.name : 'Current Sprint';
+  const active = hasActiveFilters(filters) || Boolean(selectedSprint);
+
   return (
     <div className="filter-bar">
+      {sprints.length > 0 && onSprintChange && (
+        <div className="filter-group filter-group-sprint" ref={sprintBoxRef}>
+          <label>Sprint</label>
+          <div className="sprint-select-wrap">
+            <button
+              type="button"
+              className={`sprint-select-trigger${selectedSprint ? ' has-selection' : ''}`}
+              onClick={() => setSprintOpen((o) => !o)}
+            >
+              <span className="sprint-select-label">{sprintLabel}</span>
+              <span className="sprint-select-chevron" aria-hidden>▾</span>
+            </button>
+            {selectedSprint && (
+              <button
+                type="button"
+                className="sprint-select-clear"
+                onClick={() => { onSprintChange(null); setSprintOpen(false); }}
+                title="Back to current sprint"
+              >×</button>
+            )}
+            {sprintOpen && (
+              <ul className="sprint-select-dropdown">
+                <li>
+                  <button
+                    type="button"
+                    className={!selectedSprint ? 'active' : ''}
+                    onClick={() => { onSprintChange(null); setSprintOpen(false); }}
+                  >
+                    Current Sprint
+                  </button>
+                </li>
+                {sprints.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      className={selectedSprint?.id === s.id ? 'active' : ''}
+                      onClick={() => { onSprintChange(s); setSprintOpen(false); }}
+                    >
+                      <span className="sprint-option-name">{s.name}</span>
+                      {s.endDate && (
+                        <span className="sprint-option-date">
+                          {s.state === 'active' ? 'Active' : new Date(s.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="filter-group filter-group-user" ref={userBoxRef}>
         <label htmlFor="filter-assignee">Team member</label>
         <div className="user-search-wrap">

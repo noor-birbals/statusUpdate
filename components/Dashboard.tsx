@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BOARDS, type BoardId } from '@/lib/constants';
 import { EMPTY_FILTERS, filterIssues, getAssignees, getIssueTypes, getStatuses, type DashboardFilters } from '@/lib/filters';
-import { fetchAllIssues, fetchAuthUser, logout, parseErrorHint } from '@/lib/jira-client';
+import { fetchAllIssues, fetchAuthUser, fetchSprints, logout, parseErrorHint } from '@/lib/jira-client';
 import { getStoryPointsByAssignee, getTotalStoryPoints } from '@/lib/story-points';
 import { aggregateIssues } from '@/lib/stats';
-import type { JiraIssue } from '@/lib/types';
+import type { JiraIssue, SprintInfo } from '@/lib/types';
 import BoardContent from './BoardContent';
 import FilterBar from './FilterBar';
 import LoginScreen from './LoginScreen';
@@ -50,6 +50,8 @@ export default function Dashboard() {
     mic: { ...emptyBoard },
     bib: { ...emptyBoard },
   });
+  const [boardSprints, setBoardSprints] = useState<Record<BoardId, SprintInfo[]>>({ mic: [], bib: [] });
+  const [selectedSprints, setSelectedSprints] = useState<Record<BoardId, SprintInfo | null>>({ mic: null, bib: null });
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -80,7 +82,7 @@ export default function Dashboard() {
     checkAuth();
   }, [checkAuth]);
 
-  const loadBoard = useCallback(async (boardId: BoardId) => {
+  const loadBoard = useCallback(async (boardId: BoardId, sprint?: SprintInfo | null) => {
     setBoards((prev) => ({
       ...prev,
       [boardId]: { ...prev[boardId], loading: true, error: null },
@@ -88,24 +90,31 @@ export default function Dashboard() {
 
     try {
       const board = BOARDS[boardId];
-      const issues = await fetchAllIssues(board.host, board.jql, board.fallbackJql);
+      const jql = sprint
+        ? `sprint = ${sprint.id} ORDER BY assignee ASC`
+        : board.jql;
+      const issues = await fetchAllIssues(board.host, jql, sprint ? undefined : board.fallbackJql);
       setBoards((prev) => ({
         ...prev,
         [boardId]: { loading: false, error: null, issues },
       }));
+
+      // Fetch sprint list once (only when no sprint is selected — initial load)
+      if (!sprint) {
+        const projectKey = issues[0]?.fields.project?.key;
+        if (projectKey) {
+          fetchSprints(board.host, projectKey).then((sprints) => {
+            setBoardSprints((prev) => ({ ...prev, [boardId]: sprints }));
+          });
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       const hint = parseErrorHint(msg);
-      if (msg.includes('401')) {
-        setAuthenticated(false);
-      }
+      if (msg.includes('401')) setAuthenticated(false);
       setBoards((prev) => ({
         ...prev,
-        [boardId]: {
-          loading: false,
-          error: hint ? `${msg} — ${hint}` : msg,
-          issues: [],
-        },
+        [boardId]: { loading: false, error: hint ? `${msg} — ${hint}` : msg, issues: [] },
       }));
     }
   }, []);
@@ -140,6 +149,14 @@ export default function Dashboard() {
     setLastUpdated('');
     setFilters(defaultFilters());
     setBoards({ mic: { ...emptyBoard }, bib: { ...emptyBoard } });
+    setBoardSprints({ mic: [], bib: [] });
+    setSelectedSprints({ mic: null, bib: null });
+  }
+
+  function handleSprintChange(sprint: SprintInfo | null) {
+    setSelectedSprints((prev) => ({ ...prev, [activeTab]: sprint }));
+    setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }));
+    loadBoard(activeTab, sprint);
   }
 
   const activeBoard = boards[activeTab];
@@ -252,7 +269,7 @@ export default function Dashboard() {
         />
       )}
 
-      {!activeBoard.loading && activeBoard.issues.length > 0 && (
+      {!activeBoard.loading && (
         <FilterBar
           assignees={assignees}
           issueTypes={issueTypes}
@@ -260,8 +277,14 @@ export default function Dashboard() {
           filters={activeFilters}
           totalCount={activeBoard.issues.length}
           filteredCount={filteredIssues.length}
+          sprints={boardSprints[activeTab]}
+          selectedSprint={selectedSprints[activeTab]}
+          onSprintChange={handleSprintChange}
           onApply={(next) => setFilters((prev) => ({ ...prev, [activeTab]: next }))}
-          onClear={() => setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }))}
+          onClear={() => {
+            setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }));
+            if (selectedSprints[activeTab]) handleSprintChange(null);
+          }}
         />
       )}
 

@@ -408,6 +408,83 @@ body {
   color: #97A0AF;
 }
 
+/* ── SPRINT FILTER DROPDOWN ── */
+.filter-group-sprint { min-width: 200px; }
+.sprint-select-wrap { position: relative; }
+.sprint-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #172B4D;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+  white-space: nowrap;
+}
+.sprint-select-trigger:hover,
+.sprint-select-trigger:focus { border-color: #0052CC; outline: none; }
+.sprint-select-trigger.has-selection { border-color: #0052CC; color: #0052CC; padding-right: 28px; }
+.sprint-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sprint-select-chevron { font-size: 10px; color: #5E6C84; flex-shrink: 0; }
+.sprint-select-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #97A0AF;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.sprint-select-clear:hover { color: #172B4D; }
+.sprint-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 320px;
+  background: #fff;
+  border: 2px solid #DFE1E6;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.sprint-select-dropdown li button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #172B4D;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.sprint-select-dropdown li button:hover { background: #DEEBFF; color: #0052CC; }
+.sprint-select-dropdown li button.active { background: #DEEBFF; color: #0052CC; font-weight: 600; }
+.sprint-option-name { font-weight: 500; }
+.sprint-option-date { font-size: 11px; color: #97A0AF; white-space: nowrap; flex-shrink: 0; }
+
 /* ── STORY POINTS BAR ── */
 .story-points-bar {
   background: linear-gradient(135deg, #0747A6 0%, #0052CC 60%, #0065FF 100%);
