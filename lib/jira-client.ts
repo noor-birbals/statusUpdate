@@ -1,4 +1,4 @@
-import type { JiraIssue, JiraSearchResponse } from './types';
+import type { JiraIssue, JiraSearchResponse, SprintInfo } from './types';
 
 async function fetchPage(host: string, jql: string, nextPageToken?: string): Promise<JiraSearchResponse> {
   const res = await fetch('/api/jira/search', {
@@ -75,4 +75,18 @@ export async function fetchAuthUser(): Promise<AuthUser | null> {
 
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+}
+
+export async function fetchSprints(host: string, projectKey: string): Promise<SprintInfo[]> {
+  const res = await fetch(
+    `/api/jira/sprints?host=${encodeURIComponent(host)}&projectKey=${encodeURIComponent(projectKey)}`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.sprints || [];
+}
+
+export async function fetchIssuesForSprint(host: string, sprintId: number, fallbackJql: string): Promise<JiraIssue[]> {
+  return fetchAllIssues(host, `sprint = ${sprintId} ORDER BY assignee ASC`, fallbackJql);
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { JiraIssue } from '@/lib/types';
+import type { JiraIssue, SprintInfo } from '@/lib/types';
 import { classify } from '@/lib/stats';
+import { fetchSprints, fetchIssuesForSprint } from '@/lib/jira-client';
 
 interface Props {
   issues: JiraIssue[];
@@ -155,24 +156,58 @@ function TicketFooter({ issues, host, label, color }: TicketFooterProps) {
   );
 }
 
-export default function WeeklyReport({ issues, boardLabel, host, onClose }: Props) {
+export default function WeeklyReport({ issues: initialIssues, boardLabel, host, onClose }: Props) {
   const reportRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const allSummaries = useMemo(() => buildSummaries(issues), [issues]);
+  const sprintDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sprint selection state
+  const [sprints, setSprints] = useState<SprintInfo[]>([]);
+  const [selectedSprint, setSelectedSprint] = useState<SprintInfo | null>(null);
+  const [sprintDropdownOpen, setSprintDropdownOpen] = useState(false);
+  const [reportIssues, setReportIssues] = useState<JiraIssue[]>(initialIssues);
+  const [loadingIssues, setLoadingIssues] = useState(false);
+
+  // Person filter state
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const sprint = useMemo(() => sprintName(issues), [issues]);
+
+  const sprint = useMemo(() => sprintName(reportIssues), [reportIssues]);
+
+  // Fetch available sprints on mount
+  useEffect(() => {
+    const projectKey = initialIssues[0]?.fields.project?.key;
+    if (!projectKey) return;
+    fetchSprints(host, projectKey).then(setSprints);
+  }, [host, initialIssues]);
+
+  // Fetch issues when sprint changes
+  useEffect(() => {
+    if (!selectedSprint) {
+      setReportIssues(initialIssues);
+      return;
+    }
+    setLoadingIssues(true);
+    fetchIssuesForSprint(host, selectedSprint.id, 'assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC')
+      .then((fetched) => { setReportIssues(fetched); setLoadingIssues(false); })
+      .catch(() => setLoadingIssues(false));
+  }, [selectedSprint, host, initialIssues]);
+
+  const allSummaries = useMemo(() => buildSummaries(reportIssues), [reportIssues]);
 
   const assigneeNames = useMemo(
     () => allSummaries.map((s) => s.name).sort((a, b) => a.localeCompare(b)),
     [allSummaries],
   );
 
-  // Close dropdown when clicking outside
+  // Close both dropdowns when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(e.target as Node)) {
+        setSprintDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -198,8 +233,8 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
   );
 
   const filteredIssues = useMemo(
-    () => isAll ? issues : issues.filter((i) => selected.has(i.fields.assignee?.displayName || 'Unassigned')),
-    [issues, selected, isAll],
+    () => isAll ? reportIssues : reportIssues.filter((i) => selected.has(i.fields.assignee?.displayName || 'Unassigned')),
+    [reportIssues, selected, isAll],
   );
 
   const overall = useMemo(() => overallStats(filteredIssues), [filteredIssues]);
@@ -228,6 +263,54 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+
+            {/* Sprint dropdown */}
+            {sprints.length > 0 && (
+              <div className="report-multiselect" ref={sprintDropdownRef}>
+                <button
+                  className="report-multiselect-trigger"
+                  onClick={() => setSprintDropdownOpen((o) => !o)}
+                  style={{ minWidth: 180 }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {selectedSprint ? selectedSprint.name : 'Current Sprint'}
+                  </span>
+                  <svg width="10" height="6" viewBox="0 0 10 6" style={{ flexShrink: 0, transform: sprintDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                    <path d="M0 0l5 6 5-6z" fill="rgba(255,255,255,0.7)" />
+                  </svg>
+                </button>
+                {sprintDropdownOpen && (
+                  <div className="report-multiselect-menu">
+                    <button
+                      className="report-sprint-item report-sprint-item-current"
+                      onClick={() => { setSelectedSprint(null); setSprintDropdownOpen(false); }}
+                    >
+                      Current Sprint
+                      {!selectedSprint && <span className="report-sprint-active-dot" />}
+                    </button>
+                    <div className="report-multiselect-divider" />
+                    {sprints.map((s) => (
+                      <button
+                        key={s.id}
+                        className="report-sprint-item"
+                        onClick={() => { setSelectedSprint(s); setSprintDropdownOpen(false); }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</div>
+                          {s.endDate && (
+                            <div style={{ fontSize: 11, color: '#97A0AF', marginTop: 1 }}>
+                              {s.state === 'active' ? 'Active · ends ' : 'Ended '}
+                              {new Date(s.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </div>
+                          )}
+                        </div>
+                        {selectedSprint?.id === s.id && <span className="report-sprint-active-dot" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Multi-select dropdown */}
             <div className="report-multiselect" ref={dropdownRef}>
@@ -271,12 +354,19 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
           </div>
         </div>
 
-        <div className="report-body" ref={reportRef}>
+        {loadingIssues && (
+          <div className="report-loading-overlay">
+            <div className="spinner" />
+            <div className="spinner-label">Loading sprint data…</div>
+          </div>
+        )}
+
+        <div className="report-body" ref={reportRef} style={{ opacity: loadingIssues ? 0.4 : 1, pointerEvents: loadingIssues ? 'none' : 'auto' }}>
           {/* Cover */}
           <div className="report-cover">
             <div className="report-cover-eyebrow">{boardLabel}</div>
             <div className="report-cover-title">{reportTitle}</div>
-            <div className="report-cover-sub">{sprint}</div>
+            <div className="report-cover-sub">{selectedSprint ? selectedSprint.name : sprint}</div>
             <div className="report-cover-date">{today}</div>
           </div>
 

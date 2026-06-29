@@ -738,6 +738,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 .report-toolbar {
   background: #0052CC;
@@ -916,6 +917,41 @@ body {
 .report-multiselect-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #0052CC; }
 .report-multiselect-all { font-weight: 600; color: #0052CC; }
 .report-multiselect-divider { height: 1px; background: #DFE1E6; margin: 4px 0; }
+
+/* ── SPRINT DROPDOWN ITEMS ── */
+.report-sprint-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.report-sprint-item:hover { background: #F4F5F7; }
+.report-sprint-item-current { font-size: 13px; font-weight: 700; color: #0052CC; }
+.report-sprint-active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00875A;
+  flex-shrink: 0;
+}
+
+/* ── REPORT LOADING OVERLAY ── */
+.report-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  gap: 12px;
+}
 
 /* ── TICKET FOOTER ── */
 .report-tickets-section {
