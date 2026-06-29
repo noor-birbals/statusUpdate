@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import type { JiraIssue } from '@/lib/types';
 import { classify } from '@/lib/stats';
 
@@ -157,31 +157,65 @@ function TicketFooter({ issues, host, label, color }: TicketFooterProps) {
 
 export default function WeeklyReport({ issues, boardLabel, host, onClose }: Props) {
   const reportRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const allSummaries = useMemo(() => buildSummaries(issues), [issues]);
-  const [selectedUser, setSelectedUser] = useState<string>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const sprint = useMemo(() => sprintName(issues), [issues]);
 
   const assigneeNames = useMemo(
-    () => allSummaries.map((s) => s.name),
+    () => allSummaries.map((s) => s.name).sort((a, b) => a.localeCompare(b)),
     [allSummaries],
   );
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggleName(name: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) => prev.size === assigneeNames.length ? new Set() : new Set(assigneeNames));
+  }
+
+  const isAll = selected.size === 0;
   const summaries = useMemo(
-    () => selectedUser === 'all' ? allSummaries : allSummaries.filter((s) => s.name === selectedUser),
-    [allSummaries, selectedUser],
+    () => isAll ? allSummaries : allSummaries.filter((s) => selected.has(s.name)),
+    [allSummaries, selected, isAll],
   );
 
   const filteredIssues = useMemo(
-    () => selectedUser === 'all' ? issues : issues.filter((i) => (i.fields.assignee?.displayName || 'Unassigned') === selectedUser),
-    [issues, selectedUser],
+    () => isAll ? issues : issues.filter((i) => selected.has(i.fields.assignee?.displayName || 'Unassigned')),
+    [issues, selected, isAll],
   );
 
   const overall = useMemo(() => overallStats(filteredIssues), [filteredIssues]);
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const reportTitle = selectedUser === 'all'
+  const dropdownLabel = isAll
+    ? 'All Team Members'
+    : selected.size === 1
+      ? [...selected][0]
+      : `${selected.size} members selected`;
+
+  const reportTitle = isAll
     ? 'Weekly Sprint Report'
-    : `${selectedUser} — Sprint Report`;
+    : selected.size === 1
+      ? `${[...selected][0]} — Sprint Report`
+      : 'Weekly Sprint Report';
 
   return (
     <div className="report-overlay">
@@ -194,16 +228,44 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select
-              className="report-user-select"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-            >
-              <option value="all">All Team Members</option>
-              {assigneeNames.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+
+            {/* Multi-select dropdown */}
+            <div className="report-multiselect" ref={dropdownRef}>
+              <button
+                className="report-multiselect-trigger"
+                onClick={() => setDropdownOpen((o) => !o)}
+              >
+                <span>{dropdownLabel}</span>
+                <svg width="10" height="6" viewBox="0 0 10 6" style={{ flexShrink: 0, transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                  <path d="M0 0l5 6 5-6z" fill="rgba(255,255,255,0.7)" />
+                </svg>
+              </button>
+              {dropdownOpen && (
+                <div className="report-multiselect-menu">
+                  <label className="report-multiselect-item report-multiselect-all">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === assigneeNames.length}
+                      ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < assigneeNames.length; }}
+                      onChange={toggleAll}
+                    />
+                    <span>All Team Members</span>
+                  </label>
+                  <div className="report-multiselect-divider" />
+                  {assigneeNames.map((name) => (
+                    <label key={name} className="report-multiselect-item">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(name)}
+                        onChange={() => toggleName(name)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button className="hbtn hbtn-report" onClick={() => window.print()}>⬇ Save as PDF</button>
             <button className="hbtn" onClick={onClose}>✕ Close</button>
           </div>

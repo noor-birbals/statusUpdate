@@ -870,25 +870,52 @@ body {
   flex-shrink: 0;
 }
 
-/* ── REPORT USER SELECT ── */
-.report-user-select {
+/* ── REPORT MULTI-SELECT ── */
+.report-multiselect { position: relative; }
+.report-multiselect-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: #fff;
   border-radius: 6px;
-  padding: 6px 28px 6px 10px;
+  padding: 6px 12px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.7)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  min-width: 170px;
+  min-width: 190px;
+  justify-content: space-between;
+  white-space: nowrap;
 }
-.report-user-select:focus { outline: none; border-color: rgba(255,255,255,0.8); }
-.report-user-select option { background: #0052CC; color: #fff; }
+.report-multiselect-trigger:hover { background: rgba(255, 255, 255, 0.25); }
+.report-multiselect-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(9, 30, 66, 0.25);
+  min-width: 220px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 500;
+  padding: 6px 0;
+}
+.report-multiselect-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #172B4D;
+  cursor: pointer;
+  user-select: none;
+}
+.report-multiselect-item:hover { background: #F4F5F7; }
+.report-multiselect-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #0052CC; }
+.report-multiselect-all { font-weight: 600; color: #0052CC; }
+.report-multiselect-divider { height: 1px; background: #DFE1E6; margin: 4px 0; }
 
 /* ── TICKET FOOTER ── */
 .report-tickets-section {
