@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { JiraIssue } from '@/lib/types';
 import { classify } from '@/lib/stats';
 
@@ -157,22 +157,53 @@ function TicketFooter({ issues, host, label, color }: TicketFooterProps) {
 
 export default function WeeklyReport({ issues, boardLabel, host, onClose }: Props) {
   const reportRef = useRef<HTMLDivElement>(null);
-  const summaries = useMemo(() => buildSummaries(issues), [issues]);
+  const allSummaries = useMemo(() => buildSummaries(issues), [issues]);
+  const [selectedUser, setSelectedUser] = useState<string>('all');
   const sprint = useMemo(() => sprintName(issues), [issues]);
-  const overall = useMemo(() => overallStats(issues), [issues]);
+
+  const assigneeNames = useMemo(
+    () => allSummaries.map((s) => s.name),
+    [allSummaries],
+  );
+
+  const summaries = useMemo(
+    () => selectedUser === 'all' ? allSummaries : allSummaries.filter((s) => s.name === selectedUser),
+    [allSummaries, selectedUser],
+  );
+
+  const filteredIssues = useMemo(
+    () => selectedUser === 'all' ? issues : issues.filter((i) => (i.fields.assignee?.displayName || 'Unassigned') === selectedUser),
+    [issues, selectedUser],
+  );
+
+  const overall = useMemo(() => overallStats(filteredIssues), [filteredIssues]);
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const reportTitle = selectedUser === 'all'
+    ? 'Weekly Sprint Report'
+    : `${selectedUser} — Sprint Report`;
 
   return (
     <div className="report-overlay">
       <div className="report-modal">
         <div className="report-toolbar no-print">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <strong>Weekly Sprint Report</strong>
-            <span style={{ marginLeft: 12, color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>
+            <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>
               {boardLabel} · {sprint}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select
+              className="report-user-select"
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+            >
+              <option value="all">All Team Members</option>
+              {assigneeNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
             <button className="hbtn hbtn-report" onClick={() => window.print()}>⬇ Save as PDF</button>
             <button className="hbtn" onClick={onClose}>✕ Close</button>
           </div>
@@ -182,7 +213,7 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
           {/* Cover */}
           <div className="report-cover">
             <div className="report-cover-eyebrow">{boardLabel}</div>
-            <div className="report-cover-title">Weekly Sprint Report</div>
+            <div className="report-cover-title">{reportTitle}</div>
             <div className="report-cover-sub">{sprint}</div>
             <div className="report-cover-date">{today}</div>
           </div>
@@ -225,8 +256,8 @@ export default function WeeklyReport({ issues, boardLabel, host, onClose }: Prop
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 12, color: '#6B778C', flexWrap: 'wrap' }}>
               <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#00875A', marginRight: 5 }} />Done: {overall.done}</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0052CC', marginRight: 5 }} />In Progress: {issues.filter((i) => classify(i.fields.status?.name || '') === 'inprogress').length}</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#FF8B00', marginRight: 5 }} />Review/QA: {issues.filter((i) => ['review','codereview','qa'].includes(classify(i.fields.status?.name || ''))).length}</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0052CC', marginRight: 5 }} />In Progress: {filteredIssues.filter((i) => classify(i.fields.status?.name || '') === 'inprogress').length}</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#FF8B00', marginRight: 5 }} />Review/QA: {filteredIssues.filter((i) => ['review','codereview','qa'].includes(classify(i.fields.status?.name || ''))).length}</span>
               <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#DE350B', marginRight: 5 }} />Blocked: {overall.blocked}</span>
             </div>
           </div>
