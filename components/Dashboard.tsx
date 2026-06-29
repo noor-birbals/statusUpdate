@@ -87,7 +87,8 @@ export default function Dashboard() {
     }));
 
     try {
-      const issues = await fetchAllIssues(BOARDS[boardId].host);
+      const board = BOARDS[boardId];
+      const issues = await fetchAllIssues(board.host, board.jql, board.fallbackJql);
       setBoards((prev) => ({
         ...prev,
         [boardId]: { loading: false, error: null, issues },

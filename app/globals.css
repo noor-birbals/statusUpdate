@@ -901,15 +901,55 @@ body {
 
 /* ── PRINT STYLES ── */
 @media print {
-  body { background: #fff; }
-  .no-print { display: none !important; }
-  .report-overlay { position: static; background: none; }
-  .report-modal { max-width: 100%; box-shadow: none; }
-  .report-body { overflow: visible; padding: 0; gap: 16px; }
-  .report-toolbar { display: none; }
-  .report-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .report-health-grid { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .report-person-card { page-break-inside: avoid; box-shadow: none; border: 1px solid #DFE1E6; }
-  .report-ticket-chip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Hide everything except the report */
+  body > * { display: none !important; }
+  .report-overlay { display: block !important; position: static !important; background: none !important; }
+  .report-modal {
+    display: flex !important;
+    flex-direction: column;
+    max-width: 100%;
+    width: 100%;
+    box-shadow: none;
+    background: #F4F5F7;
+  }
+  .report-toolbar { display: none !important; }
+  .report-body {
+    display: flex !important;
+    flex-direction: column;
+    overflow: visible;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  /* Preserve colours */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Cover page */
+  .report-cover {
+    background: linear-gradient(135deg, #0052CC 0%, #0747A6 100%) !important;
+    color: #fff !important;
+    page-break-after: avoid;
+  }
+
+  /* Health cards */
+  .report-health-grid { grid-template-columns: repeat(4, 1fr); }
+  .report-health-card { background: #fff !important; border: 1px solid #DFE1E6; }
+
+  /* Progress card */
+  .report-progress-card { background: #fff !important; border: 1px solid #DFE1E6; }
+
+  /* People grid — 2 columns on A4 */
   .report-people-grid { grid-template-columns: repeat(2, 1fr); }
+  .report-person-card {
+    page-break-inside: avoid;
+    background: #fff !important;
+    border: 1px solid #DFE1E6;
+    box-shadow: none;
+  }
+
+  /* Ticket chips */
+  .report-ticket-chip { border: 1px solid !important; }
+
+  /* Mini bar fills */
+  .report-section-heading { page-break-after: avoid; }
 }

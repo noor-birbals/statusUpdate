@@ -1,10 +1,21 @@
 export const BOARDS = {
-  mic: { label: 'Micurato', host: 'micurato.atlassian.net' },
-  bib: { label: 'Birbals', host: 'birbals.atlassian.net' },
+  mic: {
+    label: 'Micurato',
+    host: 'micurato.atlassian.net',
+    jql: 'sprint in openSprints() ORDER BY assignee ASC',
+    fallbackJql: 'assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
+  },
+  bib: {
+    label: 'Birbals',
+    host: 'birbals.atlassian.net',
+    jql: 'sprint in openSprints() ORDER BY assignee ASC',
+    fallbackJql: 'assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
+  },
 } as const;
 
 export type BoardId = keyof typeof BOARDS;
 
+/** @deprecated use BOARDS[id].jql instead */
 export const JQL = 'sprint in openSprints() ORDER BY assignee ASC';
 
 /** Story points custom field — override via JIRA_STORY_POINTS_FIELD in .env.local */
