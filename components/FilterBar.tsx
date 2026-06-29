@@ -13,6 +13,7 @@ interface Props {
   totalCount: number;
   filteredCount: number;
   sprints?: SprintInfo[];
+  sprintsLoading?: boolean;
   selectedSprint?: SprintInfo | null;
   onSprintChange?: (sprint: SprintInfo | null) => void;
   onApply: (filters: DashboardFilters) => void;
@@ -27,6 +28,7 @@ export default function FilterBar({
   totalCount,
   filteredCount,
   sprints = [],
+  sprintsLoading = false,
   selectedSprint = null,
   onSprintChange,
   onApply,
@@ -126,7 +128,7 @@ export default function FilterBar({
 
   return (
     <div className="filter-bar">
-      {sprints.length > 0 && onSprintChange && (
+      {onSprintChange && (
         <div className="filter-group filter-group-sprint" ref={sprintBoxRef}>
           <label>Sprint</label>
           <div className="sprint-select-wrap">
@@ -157,6 +159,9 @@ export default function FilterBar({
                     Current Sprint
                   </button>
                 </li>
+                {sprintsLoading && (
+                  <li style={{ padding: '8px 14px', fontSize: 12, color: '#97A0AF' }}>Loading sprints…</li>
+                )}
                 {sprints.map((s) => (
                   <li key={s.id}>
                     <button

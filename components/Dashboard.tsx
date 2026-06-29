@@ -52,6 +52,7 @@ export default function Dashboard() {
   });
   const [boardSprints, setBoardSprints] = useState<Record<BoardId, SprintInfo[]>>({ mic: [], bib: [] });
   const [selectedSprints, setSelectedSprints] = useState<Record<BoardId, SprintInfo | null>>({ mic: null, bib: null });
+  const [sprintsLoading, setSprintsLoading] = useState<Record<BoardId, boolean>>({ mic: false, bib: false });
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -99,13 +100,14 @@ export default function Dashboard() {
         [boardId]: { loading: false, error: null, issues },
       }));
 
-      // Fetch sprint list once (only when no sprint is selected — initial load)
+      // Fetch sprint list once after initial load
       if (!sprint) {
         const projectKey = issues[0]?.fields.project?.key;
         if (projectKey) {
-          fetchSprints(board.host, projectKey).then((sprints) => {
-            setBoardSprints((prev) => ({ ...prev, [boardId]: sprints }));
-          });
+          setSprintsLoading((prev) => ({ ...prev, [boardId]: true }));
+          fetchSprints(board.host, projectKey)
+            .then((sprints) => setBoardSprints((prev) => ({ ...prev, [boardId]: sprints })))
+            .finally(() => setSprintsLoading((prev) => ({ ...prev, [boardId]: false })));
         }
       }
     } catch (e) {
@@ -269,7 +271,7 @@ export default function Dashboard() {
         />
       )}
 
-      {!activeBoard.loading && (
+      {!activeBoard.loading && activeBoard.issues.length > 0 && (
         <FilterBar
           assignees={assignees}
           issueTypes={issueTypes}
@@ -278,6 +280,7 @@ export default function Dashboard() {
           totalCount={activeBoard.issues.length}
           filteredCount={filteredIssues.length}
           sprints={boardSprints[activeTab]}
+          sprintsLoading={sprintsLoading[activeTab]}
           selectedSprint={selectedSprints[activeTab]}
           onSprintChange={handleSprintChange}
           onApply={(next) => setFilters((prev) => ({ ...prev, [activeTab]: next }))}
