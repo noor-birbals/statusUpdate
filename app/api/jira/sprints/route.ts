@@ -28,7 +28,7 @@ async function getBoards(cloudId: string, token: string, projectKey: string): Pr
 
 async function getBoardSprints(cloudId: string, token: string, boardId: number): Promise<JiraSprint[]> {
   const res = await fetch(
-    `https://api.atlassian.com/ex/jira/${cloudId}/rest/agile/1.0/board/${boardId}/sprint?state=active,closed&maxResults=20`,
+    `https://api.atlassian.com/ex/jira/${cloudId}/rest/agile/1.0/board/${boardId}/sprint?state=active,closed,future&maxResults=20`,
     { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
   );
   if (!res.ok) return [];
@@ -73,11 +73,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Sort: active first, then closed by endDate desc (most recent first)
+  // Sort: active first, then future by startDate asc (soonest next), then closed by endDate desc (most recent first)
+  const rank = (state: string) => (state === 'active' ? 0 : state === 'future' ? 1 : 2);
   allSprints.sort((a, b) => {
-    if (a.state === 'active' && b.state !== 'active') return -1;
-    if (b.state === 'active' && a.state !== 'active') return 1;
-    return (b.endDate || '').localeCompare(a.endDate || '');
+    const rankDiff = rank(a.state) - rank(b.state);
+    if (rankDiff !== 0) return rankDiff;
+    if (a.state === 'future') return (a.startDate || '').localeCompare(b.startDate || '');
+    if (a.state === 'closed') return (b.endDate || '').localeCompare(a.endDate || '');
+    return 0;
   });
 
   return NextResponse.json({ sprints: allSprints });

@@ -170,9 +170,17 @@ export default function FilterBar({
                       onClick={() => { onSprintChange(s); setSprintOpen(false); }}
                     >
                       <span className="sprint-option-name">{s.name}</span>
-                      {s.endDate && (
+                      {s.state === 'active' && (
+                        <span className="sprint-option-date">Active</span>
+                      )}
+                      {s.state === 'future' && s.startDate && (
                         <span className="sprint-option-date">
-                          {s.state === 'active' ? 'Active' : new Date(s.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          Starts {new Date(s.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                      {s.state === 'closed' && s.endDate && (
+                        <span className="sprint-option-date">
+                          {new Date(s.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       )}
                     </button>

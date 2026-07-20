@@ -3,13 +3,13 @@ export const BOARDS = {
     label: 'Micurato',
     host: 'micurato.atlassian.net',
     jql: 'sprint in openSprints() ORDER BY assignee ASC',
-    fallbackJql: 'assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
+    fallbackJql: 'sprint is not EMPTY AND assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
   },
   bib: {
     label: 'Birbals',
     host: 'birbals.atlassian.net',
     jql: 'sprint in openSprints() ORDER BY assignee ASC',
-    fallbackJql: 'assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
+    fallbackJql: 'sprint is not EMPTY AND assignee is not EMPTY AND statusCategory != Done ORDER BY updated DESC',
   },
 } as const;
 

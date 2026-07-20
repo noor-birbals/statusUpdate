@@ -160,6 +160,7 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
   const reportRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sprintDropdownRef = useRef<HTMLDivElement>(null);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Sprint selection state
   const [sprints, setSprints] = useState<SprintInfo[]>([]);
@@ -172,7 +173,16 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Issue type filter — null means “all”; otherwise only selected types
+  const [selectedTypes, setSelectedTypes] = useState<Set<string> | null>(null);
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+
   const sprint = useMemo(() => sprintName(reportIssues), [reportIssues]);
+
+  const issueTypes = useMemo(() => {
+    const types = new Set(reportIssues.map((i) => i.fields.issuetype?.name || 'Other'));
+    return Array.from(types).sort((a, b) => a.localeCompare(b));
+  }, [reportIssues]);
 
   // Fetch available sprints on mount
   useEffect(() => {
@@ -193,14 +203,33 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
       .catch(() => setLoadingIssues(false));
   }, [selectedSprint, host, initialIssues]);
 
-  const allSummaries = useMemo(() => buildSummaries(reportIssues), [reportIssues]);
+  // Keep selections valid when available types change; null stays “all”
+  useEffect(() => {
+    setSelectedTypes((prev) => {
+      if (prev === null) return null;
+      const next = new Set([...prev].filter((t) => issueTypes.includes(t)));
+      if (next.size === 0 || next.size === issueTypes.length) return null;
+      return next;
+    });
+  }, [issueTypes]);
+
+  const isAllTypes = selectedTypes === null;
+  const typeFilteredIssues = useMemo(
+    () =>
+      isAllTypes
+        ? reportIssues
+        : reportIssues.filter((i) => selectedTypes!.has(i.fields.issuetype?.name || 'Other')),
+    [reportIssues, selectedTypes, isAllTypes],
+  );
+
+  const allSummaries = useMemo(() => buildSummaries(typeFilteredIssues), [typeFilteredIssues]);
 
   const assigneeNames = useMemo(
     () => allSummaries.map((s) => s.name).sort((a, b) => a.localeCompare(b)),
     [allSummaries],
   );
 
-  // Close both dropdowns when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -208,6 +237,9 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
       }
       if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(e.target as Node)) {
         setSprintDropdownOpen(false);
+      }
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setTypeDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -226,6 +258,23 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
     setSelected((prev) => prev.size === assigneeNames.length ? new Set() : new Set(assigneeNames));
   }
 
+  function toggleType(type: string) {
+    setSelectedTypes((prev) => {
+      // From “all”: unchecking one type → all others remain
+      if (prev === null) {
+        return new Set(issueTypes.filter((t) => t !== type));
+      }
+      const next = new Set(prev);
+      next.has(type) ? next.delete(type) : next.add(type);
+      if (next.size === 0 || next.size === issueTypes.length) return null;
+      return next;
+    });
+  }
+
+  function toggleAllTypes() {
+    setSelectedTypes(null);
+  }
+
   const isAll = selected.size === 0;
   const summaries = useMemo(
     () => isAll ? allSummaries : allSummaries.filter((s) => selected.has(s.name)),
@@ -233,8 +282,11 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
   );
 
   const filteredIssues = useMemo(
-    () => isAll ? reportIssues : reportIssues.filter((i) => selected.has(i.fields.assignee?.displayName || 'Unassigned')),
-    [reportIssues, selected, isAll],
+    () =>
+      isAll
+        ? typeFilteredIssues
+        : typeFilteredIssues.filter((i) => selected.has(i.fields.assignee?.displayName || 'Unassigned')),
+    [typeFilteredIssues, selected, isAll],
   );
 
   const overall = useMemo(() => overallStats(filteredIssues), [filteredIssues]);
@@ -245,6 +297,12 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
     : selected.size === 1
       ? [...selected][0]
       : `${selected.size} members selected`;
+
+  const typeDropdownLabel = isAllTypes
+    ? 'All Issue Types'
+    : selectedTypes!.size === 1
+      ? [...selectedTypes!][0]
+      : `${selectedTypes!.size} types selected`;
 
   const reportTitle = isAll
     ? 'Weekly Sprint Report'
@@ -307,6 +365,53 @@ export default function WeeklyReport({ issues: initialIssues, boardLabel, host, 
                         {selectedSprint?.id === s.id && <span className="report-sprint-active-dot" />}
                       </button>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Issue type multi-select */}
+            {issueTypes.length > 0 && (
+              <div className="report-multiselect" ref={typeDropdownRef}>
+                <button
+                  className="report-multiselect-trigger"
+                  onClick={() => setTypeDropdownOpen((o) => !o)}
+                  style={{ minWidth: 150 }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {typeDropdownLabel}
+                  </span>
+                  <svg width="10" height="6" viewBox="0 0 10 6" style={{ flexShrink: 0, transform: typeDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                    <path d="M0 0l5 6 5-6z" fill="rgba(255,255,255,0.7)" />
+                  </svg>
+                </button>
+                {typeDropdownOpen && (
+                  <div className="report-multiselect-menu">
+                    <label className="report-multiselect-item report-multiselect-all">
+                      <input
+                        type="checkbox"
+                        checked={isAllTypes}
+                        ref={(el) => {
+                          if (el) el.indeterminate = !isAllTypes;
+                        }}
+                        onChange={toggleAllTypes}
+                      />
+                      <span>All Issue Types</span>
+                    </label>
+                    <div className="report-multiselect-divider" />
+                    {issueTypes.map((type) => {
+                      const checked = isAllTypes || selectedTypes!.has(type);
+                      return (
+                        <label key={type} className="report-multiselect-item">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleType(type)}
+                          />
+                          <span>{type}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
