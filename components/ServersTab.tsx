@@ -1,7 +1,79 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Legend,
+  Tooltip,
+} from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
 import type { ServerEntry, ServerStatus } from '@/lib/types';
+
+ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
+
+const donutOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '60%',
+  plugins: {
+    legend: {
+      position: 'right' as const,
+      labels: { font: { size: 11 }, padding: 8, usePointStyle: true, pointStyleWidth: 8 },
+    },
+  },
+};
+
+const barOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: 'y' as const,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#F4F5F7' } },
+    y: { ticks: { font: { size: 11 } }, grid: { display: false } },
+  },
+};
+
+function parsePct(s?: string): number | null {
+  if (!s) return null;
+  const m = s.match(/\((\d+(?:\.\d+)?)%\)/);
+  return m ? Math.min(100, Math.max(0, parseFloat(m[1]))) : null;
+}
+
+// e.g. "2.9Gi available / 7.8Gi" -> used% = (total - available) / total
+function parseMemUsedPct(s?: string): number | null {
+  if (!s) return null;
+  const m = s.match(/([\d.]+)\s*[A-Za-z]*\s*available\s*\/\s*([\d.]+)/i);
+  if (!m) return null;
+  const available = parseFloat(m[1]);
+  const total = parseFloat(m[2]);
+  if (!total) return null;
+  return Math.min(100, Math.max(0, ((total - available) / total) * 100));
+}
+
+function barColor(pct: number): string {
+  if (pct >= 85) return '#DE350B';
+  if (pct >= 60) return '#FF8B00';
+  return '#00875A';
+}
+
+function ResourceBar({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="srv-resource-bar">
+      <div className="srv-resource-bar-label">
+        <span>{label}</span>
+        <span>{Math.round(pct)}%</span>
+      </div>
+      <div className="srv-resource-bar-track">
+        <div className="srv-resource-bar-fill" style={{ width: `${pct}%`, background: barColor(pct) }} />
+      </div>
+    </div>
+  );
+}
 
 const COLUMNS: { status: ServerStatus; label: string; dot: string }[] = [
   { status: 'active', label: 'Active — not yet reviewed', dot: 'orange' },
@@ -110,6 +182,15 @@ export default function ServersTab() {
     () => [...servers].sort((a, b) => a.name.localeCompare(b.name)),
     [servers],
   );
+
+  const regionEntries = useMemo(() => {
+    const c: Record<string, number> = {};
+    servers.forEach((s) => {
+      const key = s.region || 'Unknown';
+      c[key] = (c[key] || 0) + 1;
+    });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [servers]);
 
   function openDetail(s: ServerEntry) {
     setDetail(s);
@@ -248,6 +329,68 @@ export default function ServersTab() {
         </div>
       </div>
 
+      {servers.length > 0 && (
+        <div className="chart-grid">
+          <div className="chart-card">
+            <div className="chart-title">Pipeline Status</div>
+            <div className="chart-wrap" style={{ height: 200 }}>
+              <Doughnut
+                data={{
+                  labels: ['Active', 'Flagged', 'Ready to delete', 'Decommissioned'],
+                  datasets: [
+                    {
+                      data: [counts.active, counts.flagged, counts.ready, counts.done],
+                      backgroundColor: ['#FF8B00', '#DE350B', '#0052CC', '#00875A'],
+                      borderWidth: 2,
+                      borderColor: '#fff',
+                    },
+                  ],
+                }}
+                options={donutOpts}
+              />
+            </div>
+          </div>
+          <div className="chart-card">
+            <div className="chart-title">Servers by Region</div>
+            <div className="chart-wrap" style={{ height: 200 }}>
+              <Bar
+                data={{
+                  labels: regionEntries.map(([r]) => r),
+                  datasets: [
+                    {
+                      label: 'Servers',
+                      data: regionEntries.map(([, v]) => v),
+                      backgroundColor: '#0052CC',
+                      borderRadius: 4,
+                    },
+                  ],
+                }}
+                options={barOpts}
+              />
+            </div>
+          </div>
+          <div className="chart-card">
+            <div className="chart-title">Backup Coverage</div>
+            <div className="chart-wrap" style={{ height: 200 }}>
+              <Doughnut
+                data={{
+                  labels: ['Backed up', 'No backup on file'],
+                  datasets: [
+                    {
+                      data: [backupsSecured, servers.length - backupsSecured],
+                      backgroundColor: ['#6554C0', '#DFE1E6'],
+                      borderWidth: 2,
+                      borderColor: '#fff',
+                    },
+                  ],
+                }}
+                options={donutOpts}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="srv-board">
         {COLUMNS.map((col) => {
           const items = sorted.filter((s) => s.status === col.status);
@@ -319,9 +462,18 @@ export default function ServersTab() {
                         <div className="srv-meta-item">Backup<b>{s.backup.split('\n')[0].slice(0, 22)}</b></div>
                       ) : null}
                     </div>
+                    {(parsePct(s.disk) !== null || parseMemUsedPct(s.mem) !== null) && (
+                      <div className="srv-resource-bars">
+                        {parsePct(s.disk) !== null && <ResourceBar label="Disk" pct={parsePct(s.disk)!} />}
+                        {parseMemUsedPct(s.mem) !== null && (
+                          <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
+                        )}
+                      </div>
+                    )}
                     {s.status === 'flagged' && s.flagNote && (
                       <div className="srv-flag-note">⚠ {s.flagNote}</div>
                     )}
+                    <div className="srv-card-footer">View details →</div>
                   </div>
                 ))}
               </div>
@@ -514,6 +666,14 @@ export default function ServersTab() {
                   {detail.disk && detail.mem && ' · '}
                   {detail.mem && `Memory: ${detail.mem}`}
                 </p>
+                {(parsePct(detail.disk) !== null || parseMemUsedPct(detail.mem) !== null) && (
+                  <div className="srv-resource-bars">
+                    {parsePct(detail.disk) !== null && <ResourceBar label="Disk" pct={parsePct(detail.disk)!} />}
+                    {parseMemUsedPct(detail.mem) !== null && (
+                      <ResourceBar label="Memory" pct={parseMemUsedPct(detail.mem)!} />
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

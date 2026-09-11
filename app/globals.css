@@ -1234,3 +1234,20 @@ a.srv-chip:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
   .srv-field-row { flex-direction: column; gap: 0; }
   .srv-kpi-strip { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── SERVERS TAB: charts + resource bars ── */
+.srv-resource-bars { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.srv-resource-bar-label { display: flex; justify-content: space-between; font-size: 10.5px; color: #97A0AF; font-weight: 600; margin-bottom: 3px; }
+.srv-resource-bar-track { background: #F4F5F7; border-radius: 4px; height: 6px; overflow: hidden; }
+.srv-resource-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.srv-card-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #F4F5F7;
+  font-size: 11px;
+  font-weight: 700;
+  color: #97A0AF;
+  text-align: right;
+  transition: color 0.15s;
+}
+.srv-card:hover .srv-card-footer { color: #0052CC; }
