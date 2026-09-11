@@ -1,0 +1,425 @@
+<title>Server Details</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<style>
+:root{
+  color-scheme:light;
+  --blue:#0052CC; --blue-dark:#0747A6; --blue-mid:#0065FF;
+  --navy:#172B4D; --slate:#5E6C84; --faint:#97A0AF;
+  --bg:#F0F2F5; --surface:#FFFFFF; --border:#DFE1E6; --row:#F4F5F7;
+  --green:#00875A; --green-bg:#E3FCEF;
+  --orange:#FF8B00; --orange-bg:#FFF0B3;
+  --red:#DE350B; --red-bg:#FFEBE6; --red-border:#FFBDAD;
+  --purple:#6554C0; --purple-bg:#EAE6FF;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:var(--bg); color:var(--navy); min-height:100vh;
+  padding-inline:24px; padding-block:0 40px;
+}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums;}
+h1,h2,h3{text-wrap:balance;}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+
+/* ── HEADER ── */
+.header{
+  background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 60%,var(--blue-mid) 100%);
+  color:#fff; margin-inline:-24px; padding:20px 28px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  box-shadow:0 2px 12px rgba(0,82,204,.35);
+}
+.header-left h1{font-size:21px; font-weight:700; letter-spacing:-.3px;}
+.header-left p{font-size:12.5px; opacity:.78; margin-top:3px;}
+.header-right{display:flex; align-items:center; gap:10px;}
+.hbtn{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff;
+  padding:9px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s;}
+.hbtn:hover{background:rgba(255,255,255,.28);}
+
+/* ── KPI STRIP ── */
+.kpi-strip{display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-top:20px;}
+.kpi-card{background:var(--surface); border-radius:10px; padding:16px 18px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-top:4px solid transparent;}
+.kpi-card.blue{border-color:var(--blue);} .kpi-card.green{border-color:var(--green);}
+.kpi-card.orange{border-color:var(--orange);} .kpi-card.red{border-color:var(--red);}
+.kpi-card.purple{border-color:var(--purple);}
+.kpi-value{font-size:28px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;}
+.kpi-card.blue .kpi-value{color:var(--blue);} .kpi-card.green .kpi-value{color:var(--green);}
+.kpi-card.orange .kpi-value{color:var(--orange);} .kpi-card.red .kpi-value{color:var(--red);}
+.kpi-card.purple .kpi-value{color:var(--purple);}
+.kpi-label{font-size:11px; color:var(--slate); font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-top:6px;}
+.kpi-sub{font-size:11.5px; color:var(--faint); margin-top:3px;}
+
+/* ── BOARD ── */
+.board-head{display:flex; align-items:baseline; justify-content:space-between; margin-top:28px; margin-bottom:14px;}
+.board-head h2{font-size:15px; font-weight:700; color:var(--navy);}
+.board-head span{font-size:12px; color:var(--faint);}
+.board{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start;}
+.col{background:rgba(255,255,255,.5); border-radius:12px; padding:12px; min-height:60px;}
+.col-head{display:flex; align-items:center; gap:8px; padding:6px 6px 12px;}
+.col-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+.col-dot.red{background:var(--red);} .col-dot.blue{background:var(--blue);} .col-dot.green{background:var(--green);} .col-dot.orange{background:var(--orange);}
+.col-title{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--slate);}
+.col-count{margin-left:auto; background:var(--surface); border-radius:10px; padding:1px 8px; font-size:11.5px; font-weight:700; color:var(--slate);}
+.col-cards{display:flex; flex-direction:column; gap:12px;}
+
+/* ── CARD ── */
+.card{background:var(--surface); border-radius:10px; padding:16px 16px 14px; box-shadow:0 1px 4px rgba(0,0,0,.08);
+  border-left:4px solid var(--border); cursor:pointer; transition:box-shadow .15s,transform .15s;}
+.card:hover{box-shadow:0 4px 14px rgba(9,30,66,.14); transform:translateY(-1px);}
+.card.st-flagged{border-color:var(--red);}
+.card.st-ready{border-color:var(--blue);}
+.card.st-done{border-color:var(--green);}
+.card.st-active{border-color:var(--orange);}
+.card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
+.card-name{font-size:14.5px; font-weight:700; color:var(--navy);}
+.card-host{font-size:11.5px; color:var(--faint); margin-top:1px;}
+.badge{display:inline-block; padding:3px 9px; border-radius:12px; font-size:10.5px; font-weight:700; white-space:nowrap; text-transform:uppercase; letter-spacing:.3px;}
+.badge.red{background:var(--red-bg); color:var(--red);}
+.badge.blue{background:#DEEBFF; color:var(--blue);}
+.badge.green{background:var(--green-bg); color:var(--green);}
+.badge.orange{background:var(--orange-bg); color:var(--orange);}
+.card-ip{font-size:12.5px; color:var(--slate); margin-top:10px;}
+.card-os{font-size:11.5px; color:var(--faint); margin-top:2px;}
+.card-desc{font-size:12.5px; color:var(--slate); line-height:1.5; margin-top:10px;}
+.card-meta{display:flex; gap:14px; margin-top:12px; padding-top:10px; border-top:1px solid var(--row); flex-wrap:wrap;}
+.meta-item{font-size:11px; color:var(--faint);}
+.meta-item b{display:block; font-size:12.5px; color:var(--navy); font-weight:700; margin-top:1px;}
+.card-flag-note{margin-top:10px; background:var(--red-bg); border:1px solid var(--red-border); border-radius:6px; padding:8px 10px; font-size:11.5px; color:var(--red); line-height:1.5;}
+.site-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+.site-chip{display:inline-block; background:var(--row); border:1px solid var(--border); border-radius:5px; padding:3px 8px; font-size:11px; color:var(--navy); font-weight:600;}
+a.site-chip{text-decoration:none; cursor:pointer;}
+a.site-chip:hover{background:#DEEBFF; border-color:var(--blue); color:var(--blue);}
+.db-chip{display:inline-block; background:var(--purple-bg); border:1px solid #D8D0F5; border-radius:5px; padding:3px 8px; font-size:11px; color:var(--purple); font-weight:600;}
+.empty-col{text-align:center; padding:22px 10px; color:var(--faint); font-size:12.5px;}
+
+.add-card{border:2px dashed var(--border); border-radius:10px; padding:16px; text-align:center; color:var(--faint);
+  font-size:13px; font-weight:600; cursor:pointer; background:transparent; transition:.15s;}
+.add-card:hover{border-color:var(--blue); color:var(--blue); background:#F4F8FF;}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed; inset:0; background:rgba(9,30,66,.55); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px;}
+.modal-bg[hidden]{display:none;}
+.modal{background:#fff; border-radius:12px; padding:28px 30px; width:520px; max-width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,.25);}
+.modal h2{font-size:18px; font-weight:700; color:var(--navy); margin-bottom:4px;}
+.modal .sub{font-size:12.5px; color:var(--slate); margin-bottom:20px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:11px; font-weight:700; color:var(--slate); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;}
+.field input, .field select, .field textarea{width:100%; border:2px solid var(--border); border-radius:6px; padding:9px 12px;
+  font-size:13.5px; font-family:inherit; color:var(--navy); outline:none; transition:border-color .15s; background:#fff;}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--blue);}
+.field textarea{resize:vertical; min-height:70px; line-height:1.5;}
+.field-row{display:flex; gap:10px;}
+.field-row .field{flex:1;}
+.modal-actions{display:flex; gap:10px; margin-top:18px;}
+.btn-primary{background:var(--blue); color:#fff; border:none; border-radius:6px; padding:10px 22px; font-size:13.5px; font-weight:600; cursor:pointer; flex:1; transition:background .15s;}
+.btn-primary:hover{background:var(--blue-dark);}
+.btn-danger{background:transparent; color:var(--red); border:2px solid var(--red-border); border-radius:6px; padding:9px 18px; font-size:13.5px; font-weight:600; cursor:pointer; transition:background .15s;}
+.btn-danger:hover{background:var(--red-bg);}
+.btn-ghost{background:transparent; color:var(--slate); border:2px solid var(--border); border-radius:6px; padding:9px 18px; font-size:13.5px; font-weight:600; cursor:pointer; transition:background .15s;}
+.btn-ghost:hover{background:var(--row);}
+.findings-list{list-style:none; margin-top:4px;}
+.findings-list li{font-size:12.5px; color:var(--slate); line-height:1.6; padding-left:14px; position:relative;}
+.findings-list li::before{content:"–"; position:absolute; left:0; color:var(--faint);}
+.detail-section{margin-bottom:16px;}
+.detail-section h4{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--faint); margin-bottom:6px;}
+.toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 20px;
+  border-radius:8px; font-size:13px; font-weight:600; box-shadow:0 4px 20px rgba(0,0,0,.25); z-index:300; opacity:0; pointer-events:none; transition:opacity .2s;}
+.toast.show{opacity:1;}
+
+@media(max-width:1300px){
+  .board{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:1000px){
+  .kpi-strip{grid-template-columns:repeat(3,1fr);}
+  .board{grid-template-columns:1fr;}
+}
+@media(max-width:560px){
+  body{padding-inline:14px;}
+  .header{margin-inline:-14px; padding:16px;}
+  .kpi-strip{grid-template-columns:repeat(2,1fr);}
+  .field-row{flex-direction:column; gap:0;}
+}
+</style>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Server Details</h1>
+    <p>Birbals infra — central record of every server, what's hosted on it, and decommission status</p>
+  </div>
+  <div class="header-right">
+    <button class="hbtn" id="addBtn" type="button">+ Add server</button>
+  </div>
+</div>
+
+<div class="kpi-strip" id="kpiStrip">
+  <div class="kpi-card blue"><div class="kpi-value" id="kpiTotal">–</div><div class="kpi-label">Servers tracked</div></div>
+  <div class="kpi-card orange"><div class="kpi-value" id="kpiActive">–</div><div class="kpi-label">Active, unreviewed</div></div>
+  <div class="kpi-card red"><div class="kpi-value" id="kpiFlagged">–</div><div class="kpi-label">Flagged active</div></div>
+  <div class="kpi-card blue"><div class="kpi-value" id="kpiReady">–</div><div class="kpi-label">Ready to delete</div></div>
+  <div class="kpi-card green"><div class="kpi-value" id="kpiDone">–</div><div class="kpi-label">Decommissioned</div></div>
+  <div class="kpi-card purple"><div class="kpi-value" id="kpiBackups">–</div><div class="kpi-label">Backups secured</div></div>
+</div>
+
+<div class="board-head">
+  <h2>Pipeline</h2>
+  <span id="lastSync">Loading…</span>
+</div>
+
+<div class="board" id="board">
+  <div class="col">
+    <div class="col-head"><span class="col-dot orange"></span><span class="col-title">Active — not yet reviewed</span><span class="col-count" id="cnt-active">0</span></div>
+    <div class="col-cards" id="col-active"></div>
+  </div>
+  <div class="col">
+    <div class="col-head"><span class="col-dot red"></span><span class="col-title">Flagged — do not delete</span><span class="col-count" id="cnt-flagged">0</span></div>
+    <div class="col-cards" id="col-flagged"></div>
+  </div>
+  <div class="col">
+    <div class="col-head"><span class="col-dot blue"></span><span class="col-title">Ready to delete</span><span class="col-count" id="cnt-ready">0</span></div>
+    <div class="col-cards" id="col-ready"></div>
+  </div>
+  <div class="col">
+    <div class="col-head"><span class="col-dot green"></span><span class="col-title">Decommissioned</span><span class="col-count" id="cnt-done">0</span></div>
+    <div class="col-cards" id="col-done"></div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-bg" id="addModal" hidden>
+  <div class="modal">
+    <h2>Add a server</h2>
+    <p class="sub">Log a new machine into the decommission pipeline.</p>
+    <div class="field"><label for="f-name">Name</label><input id="f-name" placeholder="e.g. Analytics DB"/></div>
+    <div class="field-row">
+      <div class="field"><label for="f-ip">IP address</label><input id="f-ip" class="mono" placeholder="0.0.0.0"/></div>
+      <div class="field"><label for="f-host">Hostname</label><input id="f-host" placeholder="optional"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="f-os">OS</label><input id="f-os" placeholder="e.g. Ubuntu 24.04"/></div>
+      <div class="field"><label for="f-status">Status</label>
+        <select id="f-status">
+          <option value="active" selected>Active — not yet reviewed</option>
+          <option value="flagged">Flagged — do not delete</option>
+          <option value="ready">Ready to delete</option>
+          <option value="done">Decommissioned</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="f-plan">Linode plan</label><input id="f-plan" placeholder="e.g. Dedicated 8 GB"/></div>
+      <div class="field"><label for="f-region">Region</label><input id="f-region" placeholder="e.g. US, Fremont, CA"/></div>
+    </div>
+    <div class="field"><label for="f-websites">Websites hosted here</label><textarea id="f-websites" placeholder="One per line, e.g.&#10;copyworldinc.com&#10;checkcenters.com"></textarea></div>
+    <div class="field"><label for="f-databases">Databases (SQL) on this server</label><textarea id="f-databases" placeholder="One per line, e.g.&#10;MySQL — vtigercrm (410MB)"></textarea></div>
+    <div class="field"><label for="f-desc">What's on it</label><textarea id="f-desc" placeholder="Apps, sites, services found during investigation"></textarea></div>
+    <div class="field"><label for="f-backup">Backup location / notes</label><input id="f-backup" placeholder="e.g. Google Drive link, or 'no backup needed'"/></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="saveNewBtn" type="button">Add to board</button>
+      <button class="btn-ghost" id="cancelNewBtn" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-bg" id="detailModal" hidden>
+  <div class="modal" id="detailBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLS = {active:'col-active', flagged:'col-flagged', ready:'col-ready', done:'col-done'};
+const STATUS_LABEL = {active:'Active', flagged:'Flagged', ready:'Ready to delete', done:'Decommissioned'};
+let db = null;
+let servers = []; // [{id, ...data}]
+
+function fmtDate(iso){
+  if(!iso) return '';
+  try{ return new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }catch(e){ return ''; }
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function render(){
+  const counts = {active:0, flagged:0, ready:0, done:0};
+  Object.values(COLS).forEach(id => document.getElementById(id).innerHTML = '');
+  const sorted = [...servers].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  sorted.forEach(s=>{
+    const status = COLS[s.status] ? s.status : 'ready';
+    counts[status]++;
+    const el = document.createElement('div');
+    el.className = 'card st-' + status;
+    el.onclick = () => openDetail(s);
+    const badgeClass = status==='flagged'?'red':status==='done'?'green':status==='active'?'orange':'blue';
+    el.innerHTML = `
+      <div class="card-top">
+        <div>
+          <div class="card-name">${esc(s.name||'Unnamed')}</div>
+          ${s.linodeLabel?`<div class="card-host mono">${esc(s.linodeLabel)}</div>`:s.hostname?`<div class="card-host mono">${esc(s.hostname)}</div>`:''}
+        </div>
+        <span class="badge ${badgeClass}">${STATUS_LABEL[status]}</span>
+      </div>
+      <div class="card-ip mono">${esc(s.ip||'—')}</div>
+      ${s.os?`<div class="card-os">${esc(s.os)}</div>`:''}
+      ${s.region?`<div class="card-os">${esc(s.region)}</div>`:''}
+      ${(s.websites&&s.websites.length)?`<div class="site-chips">${siteChips(s.websites)}</div>`:''}
+      ${(s.databases&&s.databases.length)?`<div class="site-chips">${s.databases.map(d=>`<span class="db-chip">🗄 ${esc(d)}</span>`).join('')}</div>`:''}
+      ${s.desc?`<div class="card-desc">${esc(s.desc)}</div>`:''}
+      <div class="card-meta">
+        ${s.plan?`<div class="meta-item">Plan<b>${esc(s.plan)}</b></div>`:''}
+        ${s.disk?`<div class="meta-item">Disk<b>${esc(s.disk)}</b></div>`:''}
+        ${s.mem?`<div class="meta-item">Memory<b>${esc(s.mem)}</b></div>`:''}
+        ${s.lastBackup?`<div class="meta-item">Last backup<b>${esc(s.lastBackup)}</b></div>`:s.backup?`<div class="meta-item">Backup<b>${esc(s.backup.split('\\n')[0]).slice(0,22)}</b></div>`:''}
+      </div>
+      ${status==='flagged' && s.flagNote?`<div class="card-flag-note">⚠ ${esc(s.flagNote)}</div>`:''}
+    `;
+    document.getElementById(COLS[status]).appendChild(el);
+  });
+  Object.keys(counts).forEach(k=>{
+    document.getElementById('cnt-'+k).textContent = counts[k];
+    if(counts[k]===0){
+      document.getElementById(COLS[k]).innerHTML = '<div class="empty-col">Nothing here</div>';
+    }
+  });
+  document.getElementById('kpiTotal').textContent = servers.length;
+  document.getElementById('kpiActive').textContent = counts.active;
+  document.getElementById('kpiDone').textContent = counts.done;
+  document.getElementById('kpiReady').textContent = counts.ready;
+  document.getElementById('kpiFlagged').textContent = counts.flagged;
+  document.getElementById('kpiBackups').textContent = servers.filter(s=>s.backup && !/no backup/i.test(s.backup)).length;
+}
+
+function esc(str){
+  const d = document.createElement('div');
+  d.textContent = String(str==null?'':str);
+  return d.innerHTML;
+}
+
+function siteHref(w){
+  const domain = String(w||'').trim().split(/\s+/)[0];
+  if(!domain) return '';
+  if(/^https?:\/\//i.test(domain)) return domain;
+  return 'https://' + domain;
+}
+
+function siteChips(list){
+  return (list||[]).map(w=>{
+    const href = siteHref(w);
+    return href
+      ? `<a class="site-chip" href="${esc(href)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${esc(w)}</a>`
+      : `<span class="site-chip">${esc(w)}</span>`;
+  }).join('');
+}
+
+function openDetail(s){
+  const body = document.getElementById('detailBody');
+  const findings = (s.findings||[]).map(f=>`<li>${esc(f)}</li>`).join('');
+  body.innerHTML = `
+    <h2>${esc(s.name||'Unnamed')}</h2>
+    <p class="sub mono">${esc(s.ip||'—')}${s.hostname?' · '+esc(s.hostname):''}${s.os?' · '+esc(s.os):''}</p>
+    ${(s.linodeLabel||s.plan||s.region||s.lastBackup)?`<div class="detail-section"><h4>Linode fleet info</h4><p style="font-size:12.5px;color:var(--slate);line-height:1.6">${s.linodeLabel?'Label: '+esc(s.linodeLabel)+'<br>':''}${s.plan?'Plan: '+esc(s.plan)+'<br>':''}${s.region?'Region: '+esc(s.region)+'<br>':''}${s.lastBackup?'Last backup: '+esc(s.lastBackup):''}</p></div>`:''}
+    ${(s.websites&&s.websites.length)?`<div class="detail-section"><h4>Websites hosted here</h4><div class="site-chips">${siteChips(s.websites)}</div></div>`:''}
+    ${(s.databases&&s.databases.length)?`<div class="detail-section"><h4>Databases (SQL) on this server</h4><div class="site-chips">${s.databases.map(d=>`<span class="db-chip">🗄 ${esc(d)}</span>`).join('')}</div></div>`:''}
+    ${findings?`<div class="detail-section"><h4>What's on it</h4><ul class="findings-list">${findings}</ul></div>`:''}
+    ${s.desc && !findings ?`<div class="detail-section"><h4>What's on it</h4><p style="font-size:12.5px;color:var(--slate);line-height:1.6">${esc(s.desc)}</p></div>`:''}
+    ${s.disk||s.mem?`<div class="detail-section"><h4>Resources</h4><p style="font-size:12.5px;color:var(--slate)">${s.disk?'Disk: '+esc(s.disk):''}${s.disk&&s.mem?' · ':''}${s.mem?'Memory: '+esc(s.mem):''}</p></div>`:''}
+    ${s.backup?`<div class="detail-section"><h4>Backup</h4><p style="font-size:12.5px;color:var(--slate);white-space:pre-wrap">${esc(s.backup)}</p></div>`:''}
+    ${s.flagNote?`<div class="card-flag-note" style="margin-bottom:16px">⚠ ${esc(s.flagNote)}</div>`:''}
+    <div class="field"><label>Status</label>
+      <select id="d-status">
+        <option value="active" ${s.status==='active'?'selected':''}>Active — not yet reviewed</option>
+        <option value="flagged" ${s.status==='flagged'?'selected':''}>Flagged — do not delete</option>
+        <option value="ready" ${s.status==='ready'?'selected':''}>Ready to delete</option>
+        <option value="done" ${s.status==='done'?'selected':''}>Decommissioned</option>
+      </select>
+    </div>
+    <div class="field"><label>Websites hosted here</label><textarea id="d-websites" placeholder="One per line, e.g. copyworldinc.com">${esc((s.websites||[]).join('\n'))}</textarea></div>
+    <div class="field"><label>Databases (SQL) on this server</label><textarea id="d-databases" placeholder="One per line, e.g. MySQL — vtigercrm (410MB)">${esc((s.databases||[]).join('\n'))}</textarea></div>
+    <div class="field"><label>Notes</label><textarea id="d-notes" placeholder="Add a note...">${esc(s.notes||'')}</textarea></div>
+    <p class="sub" style="margin-bottom:0">Last updated ${fmtDate(s.updatedAt)}</p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="d-save">Save changes</button>
+      <button class="btn-ghost" id="d-close">Close</button>
+      <button class="btn-danger" id="d-delete">Delete</button>
+    </div>
+  `;
+  document.getElementById('detailModal').hidden = false;
+  document.getElementById('d-close').onclick = ()=> document.getElementById('detailModal').hidden = true;
+  document.getElementById('d-save').onclick = async ()=>{
+    if(!db) return;
+    const status = document.getElementById('d-status').value;
+    const notes = document.getElementById('d-notes').value;
+    const websites = document.getElementById('d-websites').value.split('\n').map(w=>w.trim()).filter(Boolean);
+    const databases = document.getElementById('d-databases').value.split('\n').map(w=>w.trim()).filter(Boolean);
+    try{
+      await db.doc('servers/'+s.id).update({status, notes, websites, databases, updatedAt:new Date().toISOString()});
+      toast('Saved');
+      document.getElementById('detailModal').hidden = true;
+    }catch(e){ toast('Could not save — try again'); }
+  };
+  document.getElementById('d-delete').onclick = async ()=>{
+    if(!db) return;
+    if(!confirm('Remove "'+(s.name||'this server')+'" from the board?')) return;
+    try{
+      await db.doc('servers/'+s.id).delete();
+      toast('Removed');
+      document.getElementById('detailModal').hidden = true;
+    }catch(e){ toast('Could not delete — try again'); }
+  };
+}
+
+document.getElementById('addBtn').onclick = ()=> document.getElementById('addModal').hidden = false;
+document.getElementById('cancelNewBtn').onclick = ()=> document.getElementById('addModal').hidden = true;
+document.getElementById('saveNewBtn').onclick = async ()=>{
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ toast('Give it a name first'); return; }
+  if(!db){ toast('Board is read-only right now'); return; }
+  const data = {
+    name,
+    ip: document.getElementById('f-ip').value.trim(),
+    hostname: document.getElementById('f-host').value.trim(),
+    os: document.getElementById('f-os').value.trim(),
+    status: document.getElementById('f-status').value,
+    plan: document.getElementById('f-plan').value.trim(),
+    region: document.getElementById('f-region').value.trim(),
+    websites: document.getElementById('f-websites').value.split('\n').map(w=>w.trim()).filter(Boolean),
+    databases: document.getElementById('f-databases').value.split('\n').map(w=>w.trim()).filter(Boolean),
+    desc: document.getElementById('f-desc').value.trim(),
+    backup: document.getElementById('f-backup').value.trim(),
+    findings: [],
+    updatedAt: new Date().toISOString(),
+  };
+  try{
+    await db.collection('servers').add(data);
+    ['f-name','f-ip','f-host','f-os','f-plan','f-region','f-websites','f-databases','f-desc','f-backup'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('addModal').hidden = true;
+    toast('Server added');
+  }catch(e){ toast('Could not add — try again'); }
+};
+
+[document.getElementById('addModal'), document.getElementById('detailModal')].forEach(m=>{
+  m.addEventListener('click', (e)=>{ if(e.target === m) m.hidden = true; });
+});
+
+async function boot(){
+  db = await claude.use('db');
+  if(!db){
+    document.getElementById('lastSync').textContent = 'Read-only view';
+    document.getElementById('addBtn').style.display = 'none';
+    render();
+    return;
+  }
+  db.collection('servers').onSnapshot((snap)=>{
+    servers = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    render();
+    document.getElementById('lastSync').textContent = 'Synced just now';
+  }, (err)=>{
+    document.getElementById('lastSync').textContent = 'Sync error';
+  });
+}
+boot();
+</script>
