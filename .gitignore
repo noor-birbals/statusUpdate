@@ -6,3 +6,5 @@ out
 *.tsbuildinfo
 next-env.d.ts
 .env
+# runtime data — server-details tab writes here; seeded from data/servers.seed.json
+data/servers.json

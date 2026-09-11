@@ -61,3 +61,28 @@ export interface BoardStats {
   assigneeStackData: Record<string, Record<string, number>>;
   blockers: Blocker[];
 }
+
+export type ServerStatus = 'active' | 'flagged' | 'ready' | 'done';
+
+export interface ServerEntry {
+  id: string;
+  name: string;
+  ip: string;
+  hostname?: string;
+  os?: string;
+  status: ServerStatus;
+  linodeLabel?: string;
+  plan?: string;
+  region?: string;
+  lastBackup?: string;
+  disk?: string;
+  mem?: string;
+  websites?: string[];
+  databases?: string[];
+  findings?: string[];
+  desc?: string;
+  backup?: string;
+  flagNote?: string;
+  notes?: string;
+  updatedAt: string;
+}

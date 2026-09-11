@@ -13,6 +13,7 @@ import FilterBar from './FilterBar';
 import LoginScreen from './LoginScreen';
 import StoryPointsBar from './StoryPointsBar';
 import WeeklyReport from './WeeklyReport';
+import ServersTab from './ServersTab';
 
 interface BoardState {
   loading: boolean;
@@ -35,7 +36,7 @@ const defaultFilters = (): Record<BoardId, DashboardFilters> => ({
 
 export default function Dashboard() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<BoardId>('mic');
+  const [activeTab, setActiveTab] = useState<BoardId | 'servers'>('mic');
   const [authenticated, setAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [userName, setUserName] = useState('');
@@ -156,13 +157,15 @@ export default function Dashboard() {
   }
 
   function handleSprintChange(sprint: SprintInfo | null) {
+    if (activeTab === 'servers') return;
     setSelectedSprints((prev) => ({ ...prev, [activeTab]: sprint }));
     setFilters((prev) => ({ ...prev, [activeTab]: { ...EMPTY_FILTERS } }));
     loadBoard(activeTab, sprint);
   }
 
-  const activeBoard = boards[activeTab];
-  const activeFilters = filters[activeTab];
+  const isServersTab = activeTab === 'servers';
+  const activeBoard = isServersTab ? emptyBoard : boards[activeTab];
+  const activeFilters = isServersTab ? EMPTY_FILTERS : filters[activeTab];
 
   const filteredIssues = useMemo(
     () => filterIssues(activeBoard.issues, activeFilters),
@@ -231,13 +234,15 @@ export default function Dashboard() {
           <button className="hbtn" disabled={refreshing} onClick={loadAll}>
             {refreshing ? '↻ Loading…' : '↻ Refresh'}
           </button>
-          <button
-            className="hbtn hbtn-report"
-            onClick={() => setShowReport(true)}
-            disabled={!activeBoard.issues.length}
-          >
-            ⬇ Weekly Report
-          </button>
+          {!isServersTab && (
+            <button
+              className="hbtn hbtn-report"
+              onClick={() => setShowReport(true)}
+              disabled={!activeBoard.issues.length}
+            >
+              ⬇ Weekly Report
+            </button>
+          )}
           <button className="hbtn" onClick={handleLogout}>
             Sign out
           </button>
@@ -254,9 +259,15 @@ export default function Dashboard() {
             {BOARDS[id].label}
           </button>
         ))}
+        <button
+          className={`tab${activeTab === 'servers' ? ' active' : ''}`}
+          onClick={() => setActiveTab('servers')}
+        >
+          Servers
+        </button>
       </div>
 
-      {!activeBoard.loading && activeBoard.issues.length > 0 && (
+      {!isServersTab && !activeBoard.loading && activeBoard.issues.length > 0 && (
         <StoryPointsBar
           rows={storyPointRows}
           totalPoints={totalStoryPoints}
@@ -271,7 +282,7 @@ export default function Dashboard() {
         />
       )}
 
-      {!activeBoard.loading && activeBoard.issues.length > 0 && (
+      {!isServersTab && !activeBoard.loading && activeBoard.issues.length > 0 && (
         <FilterBar
           assignees={assignees}
           issueTypes={issueTypes}
@@ -291,7 +302,9 @@ export default function Dashboard() {
         />
       )}
 
-      {(Object.keys(BOARDS) as BoardId[]).map((id) => {
+      {isServersTab && <ServersTab />}
+
+      {!isServersTab && (Object.keys(BOARDS) as BoardId[]).map((id) => {
         const board = boards[id];
         const boardFilters = filters[id];
         const issues = filterIssues(board.issues, boardFilters);
@@ -328,7 +341,7 @@ export default function Dashboard() {
         );
       })}
 
-      {!activeBoard.loading && activeBoard.issues.length > 0 && filteredIssues.length === 0 && (
+      {!isServersTab && !activeBoard.loading && activeBoard.issues.length > 0 && filteredIssues.length === 0 && (
         <div className="board active">
           <div className="empty-state" style={{ padding: 48 }}>
             No issues match the current filters. Try adjusting team member, issue type, status, or date range.
@@ -336,7 +349,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {showReport && (
+      {showReport && !isServersTab && (
         <WeeklyReport
           issues={activeBoard.issues}
           boardLabel={BOARDS[activeTab].label}
