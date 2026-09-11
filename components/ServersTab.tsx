@@ -61,6 +61,18 @@ function barColor(pct: number): string {
   return '#00875A';
 }
 
+function timeAgo(iso?: string): string {
+  if (!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days}d ago`;
+}
+
 function ResourceBar({ label, pct }: { label: string; pct: number }) {
   return (
     <div className="srv-resource-bar">
@@ -140,6 +152,7 @@ export default function ServersTab() {
   const [detailNotes, setDetailNotes] = useState('');
   const [detailSaving, setDetailSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -164,6 +177,21 @@ export default function ServersTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/linode/sync', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Sync failed');
+      setServers(data.servers || []);
+      showToast(`Synced ${data.matched}/${data.total} from Linode`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not sync with Linode');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const counts = useMemo(() => {
     const c: Record<ServerStatus, number> = { active: 0, flagged: 0, ready: 0, done: 0 };
@@ -297,9 +325,14 @@ export default function ServersTab() {
 
       <div className="srv-toolbar">
         <h2>Server inventory</h2>
-        <button className="hbtn srv-add-btn" onClick={() => setShowAdd(true)}>
-          + Add server
-        </button>
+        <div className="srv-toolbar-actions">
+          <button className="hbtn srv-sync-btn" onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Syncing…' : '⟳ Sync with Linode'}
+          </button>
+          <button className="hbtn srv-add-btn" onClick={() => setShowAdd(true)}>
+            + Add server
+          </button>
+        </div>
       </div>
 
       <div className="kpi-strip srv-kpi-strip">
@@ -415,6 +448,12 @@ export default function ServersTab() {
                       <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
                     </div>
                     <div className="srv-card-ip">{s.ip || '—'}</div>
+                    {s.linodeStatus && (
+                      <div className={`srv-power ${s.linodeStatus === 'running' ? 'up' : 'down'}`}>
+                        <span className="srv-power-dot" />
+                        {s.linodeStatus}
+                      </div>
+                    )}
                     {s.os && <div className="srv-card-sub">{s.os}</div>}
                     {s.region && <div className="srv-card-sub">{s.region}</div>}
                     {!!(s.websites && s.websites.length) && (
@@ -584,7 +623,7 @@ export default function ServersTab() {
               {detail.os ? ` · ${detail.os}` : ''}
             </p>
 
-            {(detail.linodeLabel || detail.plan || detail.region || detail.lastBackup) && (
+            {(detail.linodeLabel || detail.plan || detail.region || detail.lastBackup || detail.linodeStatus) && (
               <div className="srv-detail-section">
                 <h4>Linode fleet info</h4>
                 <p className="srv-detail-text">
@@ -606,8 +645,19 @@ export default function ServersTab() {
                       <br />
                     </>
                   )}
-                  {detail.lastBackup && <>Last backup: {detail.lastBackup}</>}
+                  {detail.lastBackup && (
+                    <>
+                      Last backup: {detail.lastBackup}
+                      <br />
+                    </>
+                  )}
+                  {detail.linodeStatus && <>Power status: {detail.linodeStatus}</>}
                 </p>
+                {detail.linodeSyncedAt && (
+                  <p className="srv-detail-text" style={{ marginTop: 4, color: '#97A0AF' }}>
+                    Synced with Linode {timeAgo(detail.linodeSyncedAt)}
+                  </p>
+                )}
               </div>
             )}
 

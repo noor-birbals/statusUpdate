@@ -84,5 +84,7 @@ export interface ServerEntry {
   backup?: string;
   flagNote?: string;
   notes?: string;
+  linodeStatus?: string;
+  linodeSyncedAt?: string;
   updatedAt: string;
 }
