@@ -447,9 +447,12 @@ export default function ServersTab() {
                       {s.region || '—'}
                       {s.lastBackup && <> · Backed up {s.lastBackup}</>}
                     </div>
-                    {parseMemUsedPct(s.mem) !== null && (
+                    {(s.cpuPct !== undefined || parseMemUsedPct(s.mem) !== null) && (
                       <div className="srv-resource-bars">
-                        <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
+                        {s.cpuPct !== undefined && <ResourceBar label="CPU" pct={s.cpuPct} />}
+                        {parseMemUsedPct(s.mem) !== null && (
+                          <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
+                        )}
                       </div>
                     )}
                     {s.status === 'flagged' && s.flagNote && (
@@ -651,16 +654,19 @@ export default function ServersTab() {
               </div>
             )}
 
-            {(detail.disk || detail.mem) && (
+            {(detail.disk || detail.mem || detail.cpuPct !== undefined) && (
               <div className="srv-detail-section">
                 <h4>Resources</h4>
                 <p className="srv-detail-text">
+                  {detail.cpuPct !== undefined && `CPU (live): ${detail.cpuPct}%`}
+                  {detail.cpuPct !== undefined && detail.disk && ' · '}
                   {detail.disk && `Disk: ${detail.disk}`}
-                  {detail.disk && detail.mem && ' · '}
+                  {(detail.cpuPct !== undefined || detail.disk) && detail.mem && ' · '}
                   {detail.mem && `Memory: ${detail.mem}`}
                 </p>
-                {(parsePct(detail.disk) !== null || parseMemUsedPct(detail.mem) !== null) && (
+                {(detail.cpuPct !== undefined || parsePct(detail.disk) !== null || parseMemUsedPct(detail.mem) !== null) && (
                   <div className="srv-resource-bars">
+                    {detail.cpuPct !== undefined && <ResourceBar label="CPU" pct={detail.cpuPct} />}
                     {parsePct(detail.disk) !== null && <ResourceBar label="Disk" pct={parsePct(detail.disk)!} />}
                     {parseMemUsedPct(detail.mem) !== null && (
                       <ResourceBar label="Memory" pct={parseMemUsedPct(detail.mem)!} />

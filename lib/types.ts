@@ -86,5 +86,6 @@ export interface ServerEntry {
   notes?: string;
   linodeStatus?: string;
   linodeSyncedAt?: string;
+  cpuPct?: number;
   updatedAt: string;
 }

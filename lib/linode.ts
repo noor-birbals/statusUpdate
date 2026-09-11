@@ -72,3 +72,31 @@ export function matchServerToInstance(
   const ip = server.ip.trim();
   return instances.find((inst) => inst.ipv4?.some((a) => a === ip));
 }
+
+// Linode's hypervisor reports real CPU usage per instance out of the box —
+// no agent needed. It does NOT report in-guest memory usage (the API only
+// knows the plan's allocated RAM, not what's actually used inside the
+// guest), so this stays CPU-only; memory keeps using the manually-entered
+// field elsewhere. Returns null (rather than throwing) when stats aren't
+// available yet for a Linode, so one missing instance never fails a sync.
+export async function fetchLinodeCpuPct(linodeId: number): Promise<number | null> {
+  const token = process.env.LINODE_API_TOKEN;
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`https://api.linode.com/v4/linode/instances/${linodeId}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const series: [number, number][] | undefined = data?.data?.cpu;
+    if (!series || !series.length) return null;
+    // Average the last few points so a single noisy sample doesn't jump the bar.
+    const recent = series.slice(-3);
+    const avg = recent.reduce((sum, [, v]) => sum + v, 0) / recent.length;
+    return Math.min(100, Math.max(0, Math.round(avg)));
+  } catch {
+    return null;
+  }
+}
