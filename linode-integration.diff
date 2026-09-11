@@ -1,286 +1,85 @@
-diff --git a/app/api/linode/sync/route.ts b/app/api/linode/sync/route.ts
-new file mode 100644
-index 0000000..6926e22
---- /dev/null
-+++ b/app/api/linode/sync/route.ts
-@@ -0,0 +1,55 @@
-+import { NextResponse } from 'next/server';
-+import { getStoredSession } from '@/lib/session';
-+import { readServers, writeServers } from '@/lib/servers-store';
-+import { fetchLinodeInstances, matchServerToInstance, regionLabel } from '@/lib/linode';
-+
-+export async function POST() {
-+  const session = await getStoredSession();
-+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-+
-+  let instances;
-+  try {
-+    instances = await fetchLinodeInstances();
-+  } catch (e) {
-+    return NextResponse.json(
-+      { error: e instanceof Error ? e.message : 'Failed to reach Linode' },
-+      { status: 502 },
-+    );
-+  }
-+
-+  const servers = await readServers();
-+  const now = new Date().toISOString();
-+  let matched = 0;
-+
-+  const next = servers.map((s) => {
-+    const inst = matchServerToInstance(s, instances);
-+    if (!inst) return s;
-+    matched += 1;
-+    return {
-+      ...s,
-+      linodeLabel: inst.label,
-+      plan: inst.type,
-+      region: regionLabel(inst.region),
-+      linodeStatus: inst.status,
-+      lastBackup: inst.backups?.last_successful
-+        ? new Date(inst.backups.last_successful).toLocaleString()
-+        : s.lastBackup,
-+      linodeSyncedAt: now,
-+      updatedAt: now,
-+    };
-+  });
-+
-+  await writeServers(next);
-+
-+  const knownIps = new Set(servers.map((s) => s.ip?.trim()).filter(Boolean));
-+  const unmatched = instances
-+    .filter((inst) => !inst.ipv4?.some((ip) => knownIps.has(ip)))
-+    .map((inst) => ({ label: inst.label, ip: inst.ipv4?.[0] || '', status: inst.status }));
-+
-+  return NextResponse.json({
-+    servers: next,
-+    matched,
-+    total: instances.length,
-+    unmatched,
-+  });
-+}
-diff --git a/app/globals.css b/app/globals.css
-index 21540ad..7526f9e 100644
---- a/app/globals.css
-+++ b/app/globals.css
-@@ -1119,6 +1119,14 @@ body {
- .srv-toolbar h2 { font-size: 15px; font-weight: 700; color: #172B4D; }
- .srv-add-btn { background: #0052CC; border: none; }
- .srv-add-btn:hover { background: #0747A6; }
-+.srv-toolbar-actions { display: flex; gap: 10px; }
-+.srv-sync-btn { background: #172B4D; border: none; }
-+.srv-sync-btn:hover { background: #091E42; }
-+.srv-sync-btn:disabled { opacity: 0.6; cursor: default; }
-+.srv-power { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #5E6C84; margin-top: 4px; text-transform: capitalize; }
-+.srv-power-dot { width: 7px; height: 7px; border-radius: 50%; background: #97A0AF; flex: none; }
-+.srv-power.up .srv-power-dot { background: #00875A; }
-+.srv-power.down .srv-power-dot { background: #97A0AF; }
- 
- .srv-kpi-strip { grid-template-columns: repeat(6, 1fr); }
- 
 diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
-index ebb618d..162ad08 100644
+index 162ad08..15e4c4b 100644
 --- a/components/ServersTab.tsx
 +++ b/components/ServersTab.tsx
-@@ -61,6 +61,18 @@ function barColor(pct: number): string {
-   return '#00875A';
- }
- 
-+function timeAgo(iso?: string): string {
-+  if (!iso) return '';
-+  const diffMs = Date.now() - new Date(iso).getTime();
-+  const mins = Math.round(diffMs / 60000);
-+  if (mins < 1) return 'just now';
-+  if (mins < 60) return `${mins}m ago`;
-+  const hrs = Math.round(mins / 60);
-+  if (hrs < 24) return `${hrs}h ago`;
-+  const days = Math.round(hrs / 24);
-+  return `${days}d ago`;
-+}
-+
- function ResourceBar({ label, pct }: { label: string; pct: number }) {
-   return (
-     <div className="srv-resource-bar">
-@@ -140,6 +152,7 @@ export default function ServersTab() {
-   const [detailNotes, setDetailNotes] = useState('');
-   const [detailSaving, setDetailSaving] = useState(false);
-   const [toastMsg, setToastMsg] = useState<string | null>(null);
-+  const [syncing, setSyncing] = useState(false);
- 
-   const showToast = useCallback((msg: string) => {
-     setToastMsg(msg);
-@@ -165,6 +178,21 @@ export default function ServersTab() {
-     load();
-   }, [load]);
- 
-+  async function handleSync() {
-+    setSyncing(true);
-+    try {
-+      const res = await fetch('/api/linode/sync', { method: 'POST' });
-+      const data = await res.json().catch(() => ({}));
-+      if (!res.ok) throw new Error(data?.error || 'Sync failed');
-+      setServers(data.servers || []);
-+      showToast(`Synced ${data.matched}/${data.total} from Linode`);
-+    } catch (e) {
-+      showToast(e instanceof Error ? e.message : 'Could not sync with Linode');
-+    } finally {
-+      setSyncing(false);
-+    }
-+  }
-+
-   const counts = useMemo(() => {
-     const c: Record<ServerStatus, number> = { active: 0, flagged: 0, ready: 0, done: 0 };
-     servers.forEach((s) => {
-@@ -297,9 +325,14 @@ export default function ServersTab() {
- 
-       <div className="srv-toolbar">
-         <h2>Server inventory</h2>
--        <button className="hbtn srv-add-btn" onClick={() => setShowAdd(true)}>
--          + Add server
--        </button>
-+        <div className="srv-toolbar-actions">
-+          <button className="hbtn srv-sync-btn" onClick={handleSync} disabled={syncing}>
-+            {syncing ? 'Syncing…' : '⟳ Sync with Linode'}
-+          </button>
-+          <button className="hbtn srv-add-btn" onClick={() => setShowAdd(true)}>
-+            + Add server
-+          </button>
-+        </div>
-       </div>
- 
-       <div className="kpi-strip srv-kpi-strip">
-@@ -415,6 +448,12 @@ export default function ServersTab() {
+@@ -439,74 +439,17 @@ export default function ServersTab() {
+                 {items.map((s) => (
+                   <div key={s.id} className={`srv-card st-${s.status}`} onClick={() => openDetail(s)}>
+                     <div className="srv-card-top">
+-                      <div>
+-                        <div className="srv-card-name">{s.name || 'Unnamed'}</div>
+-                        {(s.linodeLabel || s.hostname) && (
+-                          <div className="srv-card-host">{s.linodeLabel || s.hostname}</div>
+-                        )}
+-                      </div>
++                      <div className="srv-card-name">{s.name || 'Unnamed'}</div>
                        <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
                      </div>
                      <div className="srv-card-ip">{s.ip || '—'}</div>
-+                    {s.linodeStatus && (
-+                      <div className={`srv-power ${s.linodeStatus === 'running' ? 'up' : 'down'}`}>
-+                        <span className="srv-power-dot" />
-+                        {s.linodeStatus}
-+                      </div>
-+                    )}
-                     {s.os && <div className="srv-card-sub">{s.os}</div>}
-                     {s.region && <div className="srv-card-sub">{s.region}</div>}
-                     {!!(s.websites && s.websites.length) && (
-@@ -584,7 +623,7 @@ export default function ServersTab() {
-               {detail.os ? ` · ${detail.os}` : ''}
-             </p>
- 
--            {(detail.linodeLabel || detail.plan || detail.region || detail.lastBackup) && (
-+            {(detail.linodeLabel || detail.plan || detail.region || detail.lastBackup || detail.linodeStatus) && (
-               <div className="srv-detail-section">
-                 <h4>Linode fleet info</h4>
-                 <p className="srv-detail-text">
-@@ -606,8 +645,19 @@ export default function ServersTab() {
-                       <br />
-                     </>
-                   )}
--                  {detail.lastBackup && <>Last backup: {detail.lastBackup}</>}
-+                  {detail.lastBackup && (
-+                    <>
-+                      Last backup: {detail.lastBackup}
-+                      <br />
-+                    </>
-+                  )}
-+                  {detail.linodeStatus && <>Power status: {detail.linodeStatus}</>}
-                 </p>
-+                {detail.linodeSyncedAt && (
-+                  <p className="srv-detail-text" style={{ marginTop: 4, color: '#97A0AF' }}>
-+                    Synced with Linode {timeAgo(detail.linodeSyncedAt)}
-+                  </p>
-+                )}
-               </div>
-             )}
- 
-diff --git a/lib/linode.ts b/lib/linode.ts
-new file mode 100644
-index 0000000..74d60ff
---- /dev/null
-+++ b/lib/linode.ts
-@@ -0,0 +1,74 @@
-+import type { ServerEntry } from './types';
-+
-+// Thin server-side client for the Linode Cloud API. Only ever called from
-+// API routes (never from the browser) — LINODE_API_TOKEN must stay a
-+// server-side environment variable and is never sent to the client.
-+
-+export interface LinodeInstance {
-+  id: number;
-+  label: string;
-+  status: string; // e.g. "running" | "offline" | "rebooting"
-+  type: string;
-+  region: string;
-+  ipv4: string[];
-+  backups: {
-+    enabled: boolean;
-+    last_successful: string | null;
-+  };
-+}
-+
-+// Linode region slugs aren't human-friendly on their own — map the ones
-+// in our fleet (and a few common others) to the same "City, ST" style
-+// already used throughout the board.
-+const REGION_LABELS: Record<string, string> = {
-+  'us-west': 'US, Fremont, CA',
-+  'us-east': 'US, Newark, NJ',
-+  'us-central': 'US, Dallas, TX',
-+  'us-southeast': 'US, Atlanta, GA',
-+  'us-iad': 'US, Washington, DC',
-+  'us-ord': 'US, Chicago, IL',
-+  'us-lax': 'US, Los Angeles, CA',
-+  'us-sea': 'US, Seattle, WA',
-+  'us-mia': 'US, Miami, FL',
-+  'ca-central': 'Canada, Toronto',
-+};
-+
-+export function regionLabel(region: string): string {
-+  return REGION_LABELS[region] || region;
-+}
-+
-+export async function fetchLinodeInstances(): Promise<LinodeInstance[]> {
-+  const token = process.env.LINODE_API_TOKEN;
-+  if (!token) {
-+    throw new Error('LINODE_API_TOKEN is not configured on the server');
-+  }
-+
-+  const instances: LinodeInstance[] = [];
-+  let page = 1;
-+
-+  for (;;) {
-+    const res = await fetch(`https://api.linode.com/v4/linode/instances?page=${page}&page_size=100`, {
-+      headers: { Authorization: `Bearer ${token}` },
-+      cache: 'no-store',
-+    });
-+    if (!res.ok) {
-+      const text = await res.text().catch(() => '');
-+      throw new Error(`Linode API error (${res.status}): ${text.slice(0, 200)}`);
-+    }
-+    const data = await res.json();
-+    instances.push(...(data.data || []));
-+    if (!data.pages || page >= data.pages) break;
-+    page += 1;
-+  }
-+
-+  return instances;
-+}
-+
-+export function matchServerToInstance(
-+  server: ServerEntry,
-+  instances: LinodeInstance[],
-+): LinodeInstance | undefined {
-+  if (!server.ip) return undefined;
-+  const ip = server.ip.trim();
-+  return instances.find((inst) => inst.ipv4?.some((a) => a === ip));
-+}
-diff --git a/lib/types.ts b/lib/types.ts
-index 2ccf759..9bbe343 100644
---- a/lib/types.ts
-+++ b/lib/types.ts
-@@ -84,5 +84,7 @@ export interface ServerEntry {
-   backup?: string;
-   flagNote?: string;
-   notes?: string;
-+  linodeStatus?: string;
-+  linodeSyncedAt?: string;
-   updatedAt: string;
- }
+-                    {s.linodeStatus && (
+-                      <div className={`srv-power ${s.linodeStatus === 'running' ? 'up' : 'down'}`}>
+-                        <span className="srv-power-dot" />
+-                        {s.linodeStatus}
+-                      </div>
+-                    )}
+-                    {s.os && <div className="srv-card-sub">{s.os}</div>}
+-                    {s.region && <div className="srv-card-sub">{s.region}</div>}
+-                    {!!(s.websites && s.websites.length) && (
+-                      <div className="srv-chips">
+-                        {s.websites.map((w, i) => {
+-                          const href = siteHref(w);
+-                          return href ? (
+-                            <a
+-                              key={i}
+-                              className="srv-chip"
+-                              href={href}
+-                              target="_blank"
+-                              rel="noopener noreferrer"
+-                              onClick={(e) => e.stopPropagation()}
+-                            >
+-                              {w}
+-                            </a>
+-                          ) : (
+-                            <span key={i} className="srv-chip">{w}</span>
+-                          );
+-                        })}
+-                      </div>
+-                    )}
+-                    {!!(s.databases && s.databases.length) && (
+-                      <div className="srv-chips">
+-                        {s.databases.map((d, i) => (
+-                          <span key={i} className="srv-chip db">🗄 {d}</span>
+-                        ))}
+-                      </div>
+-                    )}
+-                    {s.desc && <div className="srv-card-desc">{s.desc}</div>}
+-                    <div className="srv-card-meta">
+-                      {s.plan && (
+-                        <div className="srv-meta-item">Plan<b>{s.plan}</b></div>
+-                      )}
+-                      {s.disk && (
+-                        <div className="srv-meta-item">Disk<b>{s.disk}</b></div>
+-                      )}
+-                      {s.mem && (
+-                        <div className="srv-meta-item">Memory<b>{s.mem}</b></div>
+-                      )}
+-                      {s.lastBackup ? (
+-                        <div className="srv-meta-item">Last backup<b>{s.lastBackup}</b></div>
+-                      ) : s.backup ? (
+-                        <div className="srv-meta-item">Backup<b>{s.backup.split('\n')[0].slice(0, 22)}</b></div>
+-                      ) : null}
++                    <div className="srv-card-sub">
++                      {s.region || '—'}
++                      {s.lastBackup && <> · Backed up {s.lastBackup}</>}
+                     </div>
+-                    {(parsePct(s.disk) !== null || parseMemUsedPct(s.mem) !== null) && (
++                    {parseMemUsedPct(s.mem) !== null && (
+                       <div className="srv-resource-bars">
+-                        {parsePct(s.disk) !== null && <ResourceBar label="Disk" pct={parsePct(s.disk)!} />}
+-                        {parseMemUsedPct(s.mem) !== null && (
+-                          <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
+-                        )}
++                        <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
+                       </div>
+                     )}
+                     {s.status === 'flagged' && s.flagNote && (

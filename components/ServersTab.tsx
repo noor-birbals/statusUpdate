@@ -439,74 +439,17 @@ export default function ServersTab() {
                 {items.map((s) => (
                   <div key={s.id} className={`srv-card st-${s.status}`} onClick={() => openDetail(s)}>
                     <div className="srv-card-top">
-                      <div>
-                        <div className="srv-card-name">{s.name || 'Unnamed'}</div>
-                        {(s.linodeLabel || s.hostname) && (
-                          <div className="srv-card-host">{s.linodeLabel || s.hostname}</div>
-                        )}
-                      </div>
+                      <div className="srv-card-name">{s.name || 'Unnamed'}</div>
                       <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
                     </div>
                     <div className="srv-card-ip">{s.ip || '—'}</div>
-                    {s.linodeStatus && (
-                      <div className={`srv-power ${s.linodeStatus === 'running' ? 'up' : 'down'}`}>
-                        <span className="srv-power-dot" />
-                        {s.linodeStatus}
-                      </div>
-                    )}
-                    {s.os && <div className="srv-card-sub">{s.os}</div>}
-                    {s.region && <div className="srv-card-sub">{s.region}</div>}
-                    {!!(s.websites && s.websites.length) && (
-                      <div className="srv-chips">
-                        {s.websites.map((w, i) => {
-                          const href = siteHref(w);
-                          return href ? (
-                            <a
-                              key={i}
-                              className="srv-chip"
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {w}
-                            </a>
-                          ) : (
-                            <span key={i} className="srv-chip">{w}</span>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {!!(s.databases && s.databases.length) && (
-                      <div className="srv-chips">
-                        {s.databases.map((d, i) => (
-                          <span key={i} className="srv-chip db">🗄 {d}</span>
-                        ))}
-                      </div>
-                    )}
-                    {s.desc && <div className="srv-card-desc">{s.desc}</div>}
-                    <div className="srv-card-meta">
-                      {s.plan && (
-                        <div className="srv-meta-item">Plan<b>{s.plan}</b></div>
-                      )}
-                      {s.disk && (
-                        <div className="srv-meta-item">Disk<b>{s.disk}</b></div>
-                      )}
-                      {s.mem && (
-                        <div className="srv-meta-item">Memory<b>{s.mem}</b></div>
-                      )}
-                      {s.lastBackup ? (
-                        <div className="srv-meta-item">Last backup<b>{s.lastBackup}</b></div>
-                      ) : s.backup ? (
-                        <div className="srv-meta-item">Backup<b>{s.backup.split('\n')[0].slice(0, 22)}</b></div>
-                      ) : null}
+                    <div className="srv-card-sub">
+                      {s.region || '—'}
+                      {s.lastBackup && <> · Backed up {s.lastBackup}</>}
                     </div>
-                    {(parsePct(s.disk) !== null || parseMemUsedPct(s.mem) !== null) && (
+                    {parseMemUsedPct(s.mem) !== null && (
                       <div className="srv-resource-bars">
-                        {parsePct(s.disk) !== null && <ResourceBar label="Disk" pct={parsePct(s.disk)!} />}
-                        {parseMemUsedPct(s.mem) !== null && (
-                          <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
-                        )}
+                        <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
                       </div>
                     )}
                     {s.status === 'flagged' && s.flagNote && (
