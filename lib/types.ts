@@ -62,7 +62,7 @@ export interface BoardStats {
   blockers: Blocker[];
 }
 
-export type ServerStatus = 'active' | 'flagged' | 'ready' | 'done';
+export type ServerStatus = 'active' | 'flagged' | 'done';
 
 export interface ServerEntry {
   id: string;

@@ -3,7 +3,7 @@ import { getStoredSession } from '@/lib/session';
 import { readServers, writeServers } from '@/lib/servers-store';
 import type { ServerStatus } from '@/lib/types';
 
-const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'ready', 'done'];
+const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
 
 // 'name' and 'ip' are intentionally excluded: they're required (non-optional)
 // fields on ServerEntry, and nothing in the UI edits them via PATCH today —

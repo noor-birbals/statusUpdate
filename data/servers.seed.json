@@ -51,7 +51,7 @@
     "ip": "172.234.249.190",
     "hostname": "inwilltrust-1.srv.birbals.com",
     "os": "Debian 12 (bookworm)",
-    "status": "ready",
+    "status": "active",
     "desc": "Hosts cryptotrustandwill.com (Laravel 'WillAndTestament') and a live vtigercrm instance. vtigercrm_old confirmed unused and dropped from the backup.",
     "findings": [
       "Laravel app: /cryptotrustandwill/WillAndTestament (cryptotrustandwill.com)",
@@ -137,7 +137,7 @@
     "ip": "172.232.185.48",
     "hostname": "staging.srv.birbals.com",
     "os": "Debian 12 (bookworm)",
-    "status": "ready",
+    "status": "active",
     "disk": "6.2G / 315G (2%)",
     "mem": "14Gi available / 15Gi",
     "desc": "Linode 16GB plan (6 CPU / 16GB RAM / 320GB storage), Seattle WA. Investigated thoroughly — no application deployed.",

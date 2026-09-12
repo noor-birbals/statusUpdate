@@ -3,7 +3,7 @@ import { getStoredSession } from '@/lib/session';
 import { newServerId, readServers, writeServers } from '@/lib/servers-store';
 import type { ServerEntry, ServerStatus } from '@/lib/types';
 
-const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'ready', 'done'];
+const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
 
 export async function GET() {
   const session = await getStoredSession();

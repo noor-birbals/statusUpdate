@@ -88,23 +88,20 @@ function ResourceBar({ label, pct }: { label: string; pct: number }) {
 }
 
 const COLUMNS: { status: ServerStatus; label: string; dot: string }[] = [
-  { status: 'active', label: 'Active — not yet reviewed', dot: 'orange' },
+  { status: 'active', label: 'Active', dot: 'orange' },
   { status: 'flagged', label: 'Flagged — do not delete', dot: 'red' },
-  { status: 'ready', label: 'Ready to delete', dot: 'blue' },
   { status: 'done', label: 'Decommissioned', dot: 'green' },
 ];
 
 const STATUS_LABEL: Record<ServerStatus, string> = {
   active: 'Active',
   flagged: 'Flagged',
-  ready: 'Ready to delete',
   done: 'Decommissioned',
 };
 
 const BADGE_CLASS: Record<ServerStatus, string> = {
   active: 'orange',
   flagged: 'red',
-  ready: 'blue',
   done: 'green',
 };
 
@@ -194,7 +191,7 @@ export default function ServersTab() {
   }
 
   const counts = useMemo(() => {
-    const c: Record<ServerStatus, number> = { active: 0, flagged: 0, ready: 0, done: 0 };
+    const c: Record<ServerStatus, number> = { active: 0, flagged: 0, done: 0 };
     servers.forEach((s) => {
       c[s.status] = (c[s.status] || 0) + 1;
     });
@@ -348,10 +345,6 @@ export default function ServersTab() {
           <div className="kpi-value">{counts.flagged}</div>
           <div className="kpi-label">Flagged active</div>
         </div>
-        <div className="kpi-card blue">
-          <div className="kpi-value">{counts.ready}</div>
-          <div className="kpi-label">Ready to delete</div>
-        </div>
         <div className="kpi-card green">
           <div className="kpi-value">{counts.done}</div>
           <div className="kpi-label">Decommissioned</div>
@@ -369,11 +362,11 @@ export default function ServersTab() {
             <div className="chart-wrap" style={{ height: 200 }}>
               <Doughnut
                 data={{
-                  labels: ['Active', 'Flagged', 'Ready to delete', 'Decommissioned'],
+                  labels: ['Active', 'Flagged', 'Decommissioned'],
                   datasets: [
                     {
-                      data: [counts.active, counts.flagged, counts.ready, counts.done],
-                      backgroundColor: ['#FF8B00', '#DE350B', '#0052CC', '#00875A'],
+                      data: [counts.active, counts.flagged, counts.done],
+                      backgroundColor: ['#FF8B00', '#DE350B', '#00875A'],
                       borderWidth: 2,
                       borderColor: '#fff',
                     },
@@ -503,7 +496,6 @@ export default function ServersTab() {
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ServerStatus })}>
                   <option value="active">Active — not yet reviewed</option>
                   <option value="flagged">Flagged — do not delete</option>
-                  <option value="ready">Ready to delete</option>
                   <option value="done">Decommissioned</option>
                 </select>
               </div>
@@ -690,7 +682,6 @@ export default function ServersTab() {
               <select value={detailStatus} onChange={(e) => setDetailStatus(e.target.value as ServerStatus)}>
                 <option value="active">Active — not yet reviewed</option>
                 <option value="flagged">Flagged — do not delete</option>
-                <option value="ready">Ready to delete</option>
                 <option value="done">Decommissioned</option>
               </select>
             </div>

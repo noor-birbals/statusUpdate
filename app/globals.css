@@ -1128,9 +1128,9 @@ body {
 .srv-power.up .srv-power-dot { background: #00875A; }
 .srv-power.down .srv-power-dot { background: #97A0AF; }
 
-.srv-kpi-strip { grid-template-columns: repeat(6, 1fr); }
+.srv-kpi-strip { grid-template-columns: repeat(5, 1fr); }
 
-.srv-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+.srv-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
 .srv-col { background: rgba(255, 255, 255, 0.5); border-radius: 12px; padding: 12px; min-height: 60px; }
 .srv-col-head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 12px; }
 .srv-col-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -1231,9 +1231,6 @@ a.srv-chip:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
 }
 .btn-danger:hover { background: #FFEBE6; }
 
-@media (max-width: 1300px) {
-  .srv-board { grid-template-columns: repeat(2, 1fr); }
-}
 @media (max-width: 900px) {
   .srv-board { grid-template-columns: 1fr; }
   .srv-kpi-strip { grid-template-columns: repeat(3, 1fr); }
