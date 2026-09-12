@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getStoredSession } from '@/lib/session';
-import { readServers, writeServers } from '@/lib/servers-store';
+import { newServerId, readServers, writeServers } from '@/lib/servers-store';
 import { fetchAllLinodeInstances, fetchLinodeCpuPct, matchServerToInstance, regionLabel } from '@/lib/linode';
+import type { ServerEntry, ServerStatus } from '@/lib/types';
 
 export async function POST() {
   const session = await getStoredSession();
@@ -24,7 +25,8 @@ export async function POST() {
   const now = new Date().toISOString();
   let matched = 0;
 
-  const next = await Promise.all(
+  // Update every server already on the board that matches a Linode instance by IP.
+  const updated = await Promise.all(
     servers.map(async (s) => {
       const inst = matchServerToInstance(s, instances);
       if (!inst) return s;
@@ -46,18 +48,47 @@ export async function POST() {
     }),
   );
 
-  await writeServers(next);
-
+  // Any instance in either Linode account that isn't tracked yet (no server
+  // on the board has its IP) gets added as a new card — this is what makes
+  // newly-discovered machines actually show up after a sync.
   const knownIps = new Set(servers.map((s) => s.ip?.trim()).filter(Boolean));
-  const unmatched = instances
-    .filter((inst) => !inst.ipv4?.some((ip) => knownIps.has(ip)))
-    .map((inst) => ({ label: inst.label, ip: inst.ipv4?.[0] || '', status: inst.status }));
+  const newInstances = instances.filter((inst) => !inst.ipv4?.some((ip) => knownIps.has(ip)));
+
+  const existingIds = new Set(updated.map((s) => s.id));
+  const added: ServerEntry[] = [];
+  for (const inst of newInstances) {
+    const cpuPct = await fetchLinodeCpuPct(inst.id, inst._accountToken);
+    const id = newServerId(inst.label || 'server', existingIds);
+    existingIds.add(id);
+    added.push({
+      id,
+      name: inst.label,
+      ip: inst.ipv4?.[0] || '',
+      status: 'active' as ServerStatus,
+      linodeLabel: inst.label,
+      plan: inst.type,
+      region: regionLabel(inst.region),
+      linodeStatus: inst.status,
+      cpuPct: cpuPct !== null ? cpuPct : undefined,
+      lastBackup: inst.backups?.last_successful
+        ? new Date(inst.backups.last_successful).toLocaleString()
+        : undefined,
+      websites: [],
+      databases: [],
+      findings: [],
+      linodeSyncedAt: now,
+      updatedAt: now,
+    });
+  }
+
+  const next = [...updated, ...added];
+  await writeServers(next);
 
   return NextResponse.json({
     servers: next,
     matched,
+    added: added.length,
     total: instances.length,
-    unmatched,
     accountErrors,
   });
 }

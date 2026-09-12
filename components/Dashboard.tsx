@@ -34,9 +34,15 @@ const defaultFilters = (): Record<BoardId, DashboardFilters> => ({
   bib: { ...EMPTY_FILTERS },
 });
 
-export default function Dashboard() {
+interface DashboardProps {
+  // Lets a dedicated route (e.g. app/servers/page.tsx) land directly on a
+  // given tab instead of always starting on Micurato.
+  initialTab?: BoardId | 'servers';
+}
+
+export default function Dashboard({ initialTab = 'mic' }: DashboardProps) {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<BoardId | 'servers'>('mic');
+  const [activeTab, setActiveTab] = useState<BoardId | 'servers'>(initialTab);
   const [authenticated, setAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [userName, setUserName] = useState('');

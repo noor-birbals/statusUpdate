@@ -184,12 +184,13 @@ export default function ServersTab() {
       if (!res.ok) throw new Error(data?.error || 'Sync failed');
       setServers(data.servers || []);
       const accountErrors: { label: string; error: string }[] = data.accountErrors || [];
+      const addedNote = data.added ? `, ${data.added} new` : '';
       if (accountErrors.length) {
         showToast(
-          `Synced ${data.matched}/${data.total} — ${accountErrors.map((a) => a.label).join(', ')} failed`,
+          `Synced ${data.matched}/${data.total}${addedNote} — ${accountErrors.map((a) => a.label).join(', ')} failed`,
         );
       } else {
-        showToast(`Synced ${data.matched}/${data.total} from Linode`);
+        showToast(`Synced ${data.matched}/${data.total}${addedNote} from Linode`);
       }
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not sync with Linode');
