@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getStoredSession } from '@/lib/session';
 import { readServers, writeServers } from '@/lib/servers-store';
-import { fetchLinodeCpuPct, fetchLinodeInstances, matchServerToInstance, regionLabel } from '@/lib/linode';
+import { fetchAllLinodeInstances, fetchLinodeCpuPct, matchServerToInstance, regionLabel } from '@/lib/linode';
 
 export async function POST() {
   const session = await getStoredSession();
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   let instances;
+  let accountErrors;
   try {
-    instances = await fetchLinodeInstances();
+    const result = await fetchAllLinodeInstances();
+    instances = result.instances;
+    accountErrors = result.accountErrors;
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Failed to reach Linode' },
@@ -26,7 +29,7 @@ export async function POST() {
       const inst = matchServerToInstance(s, instances);
       if (!inst) return s;
       matched += 1;
-      const cpuPct = await fetchLinodeCpuPct(inst.id);
+      const cpuPct = await fetchLinodeCpuPct(inst.id, inst._accountToken);
       return {
         ...s,
         linodeLabel: inst.label,
@@ -55,5 +58,6 @@ export async function POST() {
     matched,
     total: instances.length,
     unmatched,
+    accountErrors,
   });
 }

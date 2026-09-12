@@ -143,6 +143,7 @@ export default function ServersTab() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<ServerEntry | null>(null);
+  const [detailName, setDetailName] = useState('');
   const [detailStatus, setDetailStatus] = useState<ServerStatus>('active');
   const [detailWebsites, setDetailWebsites] = useState('');
   const [detailDatabases, setDetailDatabases] = useState('');
@@ -182,7 +183,14 @@ export default function ServersTab() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Sync failed');
       setServers(data.servers || []);
-      showToast(`Synced ${data.matched}/${data.total} from Linode`);
+      const accountErrors: { label: string; error: string }[] = data.accountErrors || [];
+      if (accountErrors.length) {
+        showToast(
+          `Synced ${data.matched}/${data.total} — ${accountErrors.map((a) => a.label).join(', ')} failed`,
+        );
+      } else {
+        showToast(`Synced ${data.matched}/${data.total} from Linode`);
+      }
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not sync with Linode');
     } finally {
@@ -219,6 +227,7 @@ export default function ServersTab() {
 
   function openDetail(s: ServerEntry) {
     setDetail(s);
+    setDetailName(s.name || '');
     setDetailStatus(s.status);
     setDetailWebsites((s.websites || []).join('\n'));
     setDetailDatabases((s.databases || []).join('\n'));
@@ -264,12 +273,17 @@ export default function ServersTab() {
 
   async function handleDetailSave() {
     if (!detail) return;
+    if (!detailName.trim()) {
+      showToast('Name cannot be empty');
+      return;
+    }
     setDetailSaving(true);
     try {
       const res = await fetch(`/api/servers/${detail.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: detailName.trim(),
           status: detailStatus,
           websites: linesToList(detailWebsites),
           databases: linesToList(detailDatabases),
@@ -494,8 +508,8 @@ export default function ServersTab() {
               <div className="srv-field">
                 <label>Status</label>
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ServerStatus })}>
-                  <option value="active">Active — not yet reviewed</option>
-                  <option value="flagged">Flagged — do not delete</option>
+                  <option value="active">Active</option>
+                  <option value="flagged">Flagged</option>
                   <option value="done">Decommissioned</option>
                 </select>
               </div>
@@ -678,10 +692,14 @@ export default function ServersTab() {
             {detail.flagNote && <div className="srv-flag-note" style={{ marginBottom: 16 }}>⚠ {detail.flagNote}</div>}
 
             <div className="srv-field">
+              <label>Name</label>
+              <input value={detailName} onChange={(e) => setDetailName(e.target.value)} placeholder="Server name" />
+            </div>
+            <div className="srv-field">
               <label>Status</label>
               <select value={detailStatus} onChange={(e) => setDetailStatus(e.target.value as ServerStatus)}>
-                <option value="active">Active — not yet reviewed</option>
-                <option value="flagged">Flagged — do not delete</option>
+                <option value="active">Active</option>
+                <option value="flagged">Flagged</option>
                 <option value="done">Decommissioned</option>
               </select>
             </div>

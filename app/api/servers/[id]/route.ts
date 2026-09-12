@@ -5,9 +5,10 @@ import type { ServerStatus } from '@/lib/types';
 
 const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
 
-// 'name' and 'ip' are intentionally excluded: they're required (non-optional)
-// fields on ServerEntry, and nothing in the UI edits them via PATCH today —
-// keeping this list to optional string fields avoids a widening mismatch.
+// 'name' is handled separately below (it's required/non-empty, unlike these
+// optional fields, so lumping it into this generic loop would widen the
+// indexed-assignment type). 'ip' stays excluded — nothing in the UI edits it
+// via PATCH today.
 const STRING_FIELDS = [
   'hostname', 'os', 'plan', 'region', 'lastBackup',
   'linodeLabel', 'disk', 'mem', 'desc', 'backup', 'flagNote', 'notes',
@@ -31,6 +32,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const current = servers[idx];
   const next = { ...current };
+
+  if (body.name !== undefined) {
+    const trimmed = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!trimmed) {
+      return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
+    }
+    next.name = trimmed;
+  }
 
   if (body.status !== undefined) {
     if (!VALID_STATUSES.includes(body.status)) {

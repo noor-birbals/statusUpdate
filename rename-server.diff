@@ -1,0 +1,82 @@
+diff --git a/app/api/servers/[id]/route.ts b/app/api/servers/[id]/route.ts
+index 0566e07..220374e 100644
+--- a/app/api/servers/[id]/route.ts
++++ b/app/api/servers/[id]/route.ts
+@@ -5,9 +5,10 @@ import type { ServerStatus } from '@/lib/types';
+ 
+ const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+ 
+-// 'name' and 'ip' are intentionally excluded: they're required (non-optional)
+-// fields on ServerEntry, and nothing in the UI edits them via PATCH today —
+-// keeping this list to optional string fields avoids a widening mismatch.
++// 'name' is handled separately below (it's required/non-empty, unlike these
++// optional fields, so lumping it into this generic loop would widen the
++// indexed-assignment type). 'ip' stays excluded — nothing in the UI edits it
++// via PATCH today.
+ const STRING_FIELDS = [
+   'hostname', 'os', 'plan', 'region', 'lastBackup',
+   'linodeLabel', 'disk', 'mem', 'desc', 'backup', 'flagNote', 'notes',
+@@ -32,6 +33,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
+   const current = servers[idx];
+   const next = { ...current };
+ 
++  if (body.name !== undefined) {
++    const trimmed = typeof body.name === 'string' ? body.name.trim() : '';
++    if (!trimmed) {
++      return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
++    }
++    next.name = trimmed;
++  }
++
+   if (body.status !== undefined) {
+     if (!VALID_STATUSES.includes(body.status)) {
+       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
+index da9db95..510e872 100644
+--- a/components/ServersTab.tsx
++++ b/components/ServersTab.tsx
+@@ -143,6 +143,7 @@ export default function ServersTab() {
+   const [form, setForm] = useState<FormState>(emptyForm);
+   const [saving, setSaving] = useState(false);
+   const [detail, setDetail] = useState<ServerEntry | null>(null);
++  const [detailName, setDetailName] = useState('');
+   const [detailStatus, setDetailStatus] = useState<ServerStatus>('active');
+   const [detailWebsites, setDetailWebsites] = useState('');
+   const [detailDatabases, setDetailDatabases] = useState('');
+@@ -219,6 +220,7 @@ export default function ServersTab() {
+ 
+   function openDetail(s: ServerEntry) {
+     setDetail(s);
++    setDetailName(s.name || '');
+     setDetailStatus(s.status);
+     setDetailWebsites((s.websites || []).join('\n'));
+     setDetailDatabases((s.databases || []).join('\n'));
+@@ -264,12 +266,17 @@ export default function ServersTab() {
+ 
+   async function handleDetailSave() {
+     if (!detail) return;
++    if (!detailName.trim()) {
++      showToast('Name cannot be empty');
++      return;
++    }
+     setDetailSaving(true);
+     try {
+       const res = await fetch(`/api/servers/${detail.id}`, {
+         method: 'PATCH',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
++          name: detailName.trim(),
+           status: detailStatus,
+           websites: linesToList(detailWebsites),
+           databases: linesToList(detailDatabases),
+@@ -677,6 +684,10 @@ export default function ServersTab() {
+ 
+             {detail.flagNote && <div className="srv-flag-note" style={{ marginBottom: 16 }}>⚠ {detail.flagNote}</div>}
+ 
++            <div className="srv-field">
++              <label>Name</label>
++              <input value={detailName} onChange={(e) => setDetailName(e.target.value)} placeholder="Server name" />
++            </div>
+             <div className="srv-field">
+               <label>Status</label>
+               <select value={detailStatus} onChange={(e) => setDetailStatus(e.target.value as ServerStatus)}>
