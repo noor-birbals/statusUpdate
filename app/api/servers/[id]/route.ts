@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStoredSession } from '@/lib/session';
 import { readServers, writeServers } from '@/lib/servers-store';
-import type { ServerStatus } from '@/lib/types';
+import type { ServerProvider, ServerStatus } from '@/lib/types';
 
 const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+const VALID_PROVIDERS: ServerProvider[] = ['linode', 'ioflood'];
 
 // 'name' is handled separately below (it's required/non-empty, unlike these
 // optional fields, so lumping it into this generic loop would widen the
@@ -46,6 +47,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
     next.status = body.status;
+  }
+
+  if (body.provider !== undefined) {
+    if (body.provider === '' || body.provider === null) {
+      next.provider = undefined;
+    } else if (VALID_PROVIDERS.includes(body.provider)) {
+      next.provider = body.provider;
+    } else {
+      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
+    }
   }
 
   for (const field of STRING_FIELDS) {

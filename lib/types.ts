@@ -64,6 +64,11 @@ export interface BoardStats {
 
 export type ServerStatus = 'active' | 'flagged' | 'done';
 
+// Which company actually hosts the physical/virtual machine. Optional and
+// manually set (or auto-set to 'linode' by the Linode sync) since there's
+// no API to confirm this for providers other than Linode.
+export type ServerProvider = 'linode' | 'ioflood';
+
 export interface ServerEntry {
   id: string;
   name: string;
@@ -87,5 +92,6 @@ export interface ServerEntry {
   linodeStatus?: string;
   linodeSyncedAt?: string;
   cpuPct?: number;
+  provider?: ServerProvider;
   updatedAt: string;
 }

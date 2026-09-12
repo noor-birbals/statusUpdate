@@ -38,6 +38,7 @@ export async function POST() {
         plan: inst.type,
         region: regionLabel(inst.region),
         linodeStatus: inst.status,
+        provider: 'linode' as const,
         cpuPct: cpuPct !== null ? cpuPct : s.cpuPct,
         lastBackup: inst.backups?.last_successful
           ? new Date(inst.backups.last_successful).toLocaleString()
@@ -69,6 +70,7 @@ export async function POST() {
       plan: inst.type,
       region: regionLabel(inst.region),
       linodeStatus: inst.status,
+      provider: 'linode',
       cpuPct: cpuPct !== null ? cpuPct : undefined,
       lastBackup: inst.backups?.last_successful
         ? new Date(inst.backups.last_successful).toLocaleString()

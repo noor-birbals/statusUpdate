@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStoredSession } from '@/lib/session';
 import { newServerId, readServers, writeServers } from '@/lib/servers-store';
-import type { ServerEntry, ServerStatus } from '@/lib/types';
+import type { ServerEntry, ServerProvider, ServerStatus } from '@/lib/types';
 
 const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+const VALID_PROVIDERS: ServerProvider[] = ['linode', 'ioflood'];
 
 export async function GET() {
   const session = await getStoredSession();
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
   const status: ServerStatus = VALID_STATUSES.includes(body?.status) ? body.status : 'active';
+  const provider: ServerProvider | undefined = VALID_PROVIDERS.includes(body?.provider) ? body.provider : undefined;
 
   const servers = await readServers();
   const id = newServerId(name, new Set(servers.map((s) => s.id)));
@@ -39,6 +41,7 @@ export async function POST(request: NextRequest) {
     databases: Array.isArray(body?.databases) ? body.databases.filter((d: unknown) => typeof d === 'string') : [],
     desc: typeof body?.desc === 'string' ? body.desc.trim() : undefined,
     backup: typeof body?.backup === 'string' ? body.backup.trim() : undefined,
+    provider,
     findings: [],
     notes: '',
     updatedAt: new Date().toISOString(),

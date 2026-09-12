@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import type { ServerEntry, ServerStatus } from '@/lib/types';
+import type { ServerEntry, ServerProvider, ServerStatus } from '@/lib/types';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
 
@@ -105,6 +105,26 @@ const BADGE_CLASS: Record<ServerStatus, string> = {
   done: 'green',
 };
 
+// Linode's mark is loaded from Simple Icons' public CDN (a well-known,
+// version-pinned icon registry used widely for exactly this purpose —
+// identifying a third-party service). IOFlood has no such registry entry,
+// so that logo is a local asset at public/logos/ioflood.png instead.
+const PROVIDER_INFO: Record<ServerProvider, { label: string; src: string }> = {
+  linode: { label: 'Linode', src: 'https://cdn.jsdelivr.net/npm/simple-icons@13/icons/linode.svg' },
+  ioflood: { label: 'IOFlood', src: '/logos/ioflood.png' },
+};
+
+function ProviderBadge({ provider }: { provider?: ServerProvider }) {
+  if (!provider) return null;
+  const info = PROVIDER_INFO[provider];
+  return (
+    <span className="srv-provider-badge" title={`Hosted on ${info.label}`}>
+      <img src={info.src} alt={info.label} />
+      {info.label}
+    </span>
+  );
+}
+
 function siteHref(w: string): string | null {
   const domain = w.trim().split(/\s+/)[0];
   if (!domain) return null;
@@ -122,6 +142,7 @@ interface FormState {
   hostname: string;
   os: string;
   status: ServerStatus;
+  provider: ServerProvider | '';
   plan: string;
   region: string;
   websites: string;
@@ -131,7 +152,7 @@ interface FormState {
 }
 
 const emptyForm: FormState = {
-  name: '', ip: '', hostname: '', os: '', status: 'active',
+  name: '', ip: '', hostname: '', os: '', status: 'active', provider: '',
   plan: '', region: '', websites: '', databases: '', desc: '', backup: '',
 };
 
@@ -144,6 +165,7 @@ export default function ServersTab() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<ServerEntry | null>(null);
   const [detailName, setDetailName] = useState('');
+  const [detailProvider, setDetailProvider] = useState<ServerProvider | ''>('');
   const [detailStatus, setDetailStatus] = useState<ServerStatus>('active');
   const [detailWebsites, setDetailWebsites] = useState('');
   const [detailDatabases, setDetailDatabases] = useState('');
@@ -229,6 +251,7 @@ export default function ServersTab() {
   function openDetail(s: ServerEntry) {
     setDetail(s);
     setDetailName(s.name || '');
+    setDetailProvider(s.provider || '');
     setDetailStatus(s.status);
     setDetailWebsites((s.websites || []).join('\n'));
     setDetailDatabases((s.databases || []).join('\n'));
@@ -251,6 +274,7 @@ export default function ServersTab() {
           hostname: form.hostname.trim(),
           os: form.os.trim(),
           status: form.status,
+          provider: form.provider || undefined,
           plan: form.plan.trim(),
           region: form.region.trim(),
           websites: linesToList(form.websites),
@@ -286,6 +310,7 @@ export default function ServersTab() {
         body: JSON.stringify({
           name: detailName.trim(),
           status: detailStatus,
+          provider: detailProvider || '',
           websites: linesToList(detailWebsites),
           databases: linesToList(detailDatabases),
           notes: detailNotes,
@@ -448,7 +473,10 @@ export default function ServersTab() {
                   <div key={s.id} className={`srv-card st-${s.status}`} onClick={() => openDetail(s)}>
                     <div className="srv-card-top">
                       <div className="srv-card-name">{s.name || 'Unnamed'}</div>
-                      <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
+                      <div className="srv-card-top-right">
+                        <ProviderBadge provider={s.provider} />
+                        <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
+                      </div>
                     </div>
                     <div className="srv-card-ip">{s.ip || '—'}</div>
                     <div className="srv-card-sub">
@@ -514,6 +542,17 @@ export default function ServersTab() {
                   <option value="done">Decommissioned</option>
                 </select>
               </div>
+              <div className="srv-field">
+                <label>Hosting provider</label>
+                <select
+                  value={form.provider}
+                  onChange={(e) => setForm({ ...form, provider: e.target.value as ServerProvider | '' })}
+                >
+                  <option value="">Unset</option>
+                  <option value="linode">Linode</option>
+                  <option value="ioflood">IOFlood</option>
+                </select>
+              </div>
             </div>
             <div className="srv-field-row">
               <div className="srv-field">
@@ -570,6 +609,7 @@ export default function ServersTab() {
         >
           <div className="modal srv-modal-wide">
             <h2>{detail.name || 'Unnamed'}</h2>
+            <ProviderBadge provider={detail.provider} />
             <p className="srv-mono-sub">
               {detail.ip || '—'}
               {detail.hostname ? ` · ${detail.hostname}` : ''}
@@ -617,7 +657,7 @@ export default function ServersTab() {
             {!!(detail.websites && detail.websites.length) && (
               <div className="srv-detail-section">
                 <h4>Websites hosted here</h4>
-                <div className="srv-chips">
+                <div className="srv-chips srv-chips-list">
                   {detail.websites.map((w, i) => {
                     const href = siteHref(w);
                     return href ? (
@@ -702,6 +742,17 @@ export default function ServersTab() {
                 <option value="active">Active</option>
                 <option value="flagged">Flagged</option>
                 <option value="done">Decommissioned</option>
+              </select>
+            </div>
+            <div className="srv-field">
+              <label>Hosting provider</label>
+              <select
+                value={detailProvider}
+                onChange={(e) => setDetailProvider(e.target.value as ServerProvider | '')}
+              >
+                <option value="">Unset</option>
+                <option value="linode">Linode</option>
+                <option value="ioflood">IOFlood</option>
               </select>
             </div>
             <div className="srv-field">

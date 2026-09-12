@@ -1,0 +1,345 @@
+diff --git a/app/api/linode/sync/route.ts b/app/api/linode/sync/route.ts
+index cf2f275..fc49029 100644
+--- a/app/api/linode/sync/route.ts
++++ b/app/api/linode/sync/route.ts
+@@ -38,6 +38,7 @@ export async function POST() {
+         plan: inst.type,
+         region: regionLabel(inst.region),
+         linodeStatus: inst.status,
++        provider: 'linode' as const,
+         cpuPct: cpuPct !== null ? cpuPct : s.cpuPct,
+         lastBackup: inst.backups?.last_successful
+           ? new Date(inst.backups.last_successful).toLocaleString()
+@@ -69,6 +70,7 @@ export async function POST() {
+       plan: inst.type,
+       region: regionLabel(inst.region),
+       linodeStatus: inst.status,
++      provider: 'linode',
+       cpuPct: cpuPct !== null ? cpuPct : undefined,
+       lastBackup: inst.backups?.last_successful
+         ? new Date(inst.backups.last_successful).toLocaleString()
+diff --git a/app/api/servers/[id]/route.ts b/app/api/servers/[id]/route.ts
+index 220374e..8f3a4dd 100644
+--- a/app/api/servers/[id]/route.ts
++++ b/app/api/servers/[id]/route.ts
+@@ -1,9 +1,10 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import { getStoredSession } from '@/lib/session';
+ import { readServers, writeServers } from '@/lib/servers-store';
+-import type { ServerStatus } from '@/lib/types';
++import type { ServerProvider, ServerStatus } from '@/lib/types';
+ 
+ const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
++const VALID_PROVIDERS: ServerProvider[] = ['linode', 'ioflood'];
+ 
+ // 'name' is handled separately below (it's required/non-empty, unlike these
+ // optional fields, so lumping it into this generic loop would widen the
+@@ -48,6 +49,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
+     next.status = body.status;
+   }
+ 
++  if (body.provider !== undefined) {
++    if (body.provider === '' || body.provider === null) {
++      next.provider = undefined;
++    } else if (VALID_PROVIDERS.includes(body.provider)) {
++      next.provider = body.provider;
++    } else {
++      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
++    }
++  }
++
+   for (const field of STRING_FIELDS) {
+     if (body[field] !== undefined) {
+       next[field] = typeof body[field] === 'string' ? body[field] : current[field];
+diff --git a/app/api/servers/route.ts b/app/api/servers/route.ts
+index 404f89a..073d849 100644
+--- a/app/api/servers/route.ts
++++ b/app/api/servers/route.ts
+@@ -1,9 +1,10 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import { getStoredSession } from '@/lib/session';
+ import { newServerId, readServers, writeServers } from '@/lib/servers-store';
+-import type { ServerEntry, ServerStatus } from '@/lib/types';
++import type { ServerEntry, ServerProvider, ServerStatus } from '@/lib/types';
+ 
+ const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
++const VALID_PROVIDERS: ServerProvider[] = ['linode', 'ioflood'];
+ 
+ export async function GET() {
+   const session = await getStoredSession();
+@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
+   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+ 
+   const status: ServerStatus = VALID_STATUSES.includes(body?.status) ? body.status : 'active';
++  const provider: ServerProvider | undefined = VALID_PROVIDERS.includes(body?.provider) ? body.provider : undefined;
+ 
+   const servers = await readServers();
+   const id = newServerId(name, new Set(servers.map((s) => s.id)));
+@@ -39,6 +41,7 @@ export async function POST(request: NextRequest) {
+     databases: Array.isArray(body?.databases) ? body.databases.filter((d: unknown) => typeof d === 'string') : [],
+     desc: typeof body?.desc === 'string' ? body.desc.trim() : undefined,
+     backup: typeof body?.backup === 'string' ? body.backup.trim() : undefined,
++    provider,
+     findings: [],
+     notes: '',
+     updatedAt: new Date().toISOString(),
+diff --git a/app/globals.css b/app/globals.css
+index 6d560b4..fe7a88b 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -1158,6 +1158,21 @@ body {
+ .srv-card.st-active { border-color: #FF8B00; }
+ .srv-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+ .srv-card-name { font-size: 14.5px; font-weight: 700; color: #172B4D; }
++.srv-card-top-right { display: flex; align-items: center; gap: 6px; flex: none; }
++.srv-provider-badge {
++  display: inline-flex;
++  align-items: center;
++  gap: 4px;
++  font-size: 10.5px;
++  font-weight: 600;
++  color: #5E6C84;
++  background: #F4F5F7;
++  border: 1px solid #DFE1E6;
++  border-radius: 999px;
++  padding: 2px 8px 2px 6px;
++  white-space: nowrap;
++}
++.srv-provider-badge img { width: 12px; height: 12px; object-fit: contain; }
+ .srv-card-host { font-size: 11.5px; color: #97A0AF; margin-top: 1px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+ .srv-badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 10.5px; font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px; }
+ .srv-badge.red { background: #FFEBE6; color: #DE350B; }
+@@ -1186,6 +1201,17 @@ body {
+ a.srv-chip { cursor: pointer; }
+ a.srv-chip:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
+ .srv-chip.db { background: #EAE6FF; border-color: #D8D0F5; color: #6554C0; }
++.srv-chips-list { flex-direction: column; flex-wrap: nowrap; }
++.srv-chips-list .srv-chip {
++  width: 100%;
++  box-sizing: border-box;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  padding: 8px 12px;
++  font-size: 12.5px;
++}
++.srv-chips-list a.srv-chip::after { content: '↗'; opacity: 0.45; font-weight: 400; margin-left: 8px; }
+ .srv-empty-col { text-align: center; padding: 22px 10px; color: #97A0AF; font-size: 12.5px; }
+ .srv-findings { list-style: none; margin-top: 4px; }
+ .srv-findings li { font-size: 12.5px; color: #5E6C84; line-height: 1.6; padding-left: 14px; position: relative; }
+diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
+index 764326f..f658b6e 100644
+--- a/components/ServersTab.tsx
++++ b/components/ServersTab.tsx
+@@ -11,7 +11,7 @@ import {
+   Tooltip,
+ } from 'chart.js';
+ import { Doughnut, Bar } from 'react-chartjs-2';
+-import type { ServerEntry, ServerStatus } from '@/lib/types';
++import type { ServerEntry, ServerProvider, ServerStatus } from '@/lib/types';
+ 
+ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
+ 
+@@ -105,6 +105,26 @@ const BADGE_CLASS: Record<ServerStatus, string> = {
+   done: 'green',
+ };
+ 
++// Linode's mark is loaded from Simple Icons' public CDN (a well-known,
++// version-pinned icon registry used widely for exactly this purpose —
++// identifying a third-party service). IOFlood has no such registry entry,
++// so that logo is a local asset at public/logos/ioflood.png instead.
++const PROVIDER_INFO: Record<ServerProvider, { label: string; src: string }> = {
++  linode: { label: 'Linode', src: 'https://cdn.jsdelivr.net/npm/simple-icons@13/icons/linode.svg' },
++  ioflood: { label: 'IOFlood', src: '/logos/ioflood.png' },
++};
++
++function ProviderBadge({ provider }: { provider?: ServerProvider }) {
++  if (!provider) return null;
++  const info = PROVIDER_INFO[provider];
++  return (
++    <span className="srv-provider-badge" title={`Hosted on ${info.label}`}>
++      <img src={info.src} alt={info.label} />
++      {info.label}
++    </span>
++  );
++}
++
+ function siteHref(w: string): string | null {
+   const domain = w.trim().split(/\s+/)[0];
+   if (!domain) return null;
+@@ -122,6 +142,7 @@ interface FormState {
+   hostname: string;
+   os: string;
+   status: ServerStatus;
++  provider: ServerProvider | '';
+   plan: string;
+   region: string;
+   websites: string;
+@@ -131,7 +152,7 @@ interface FormState {
+ }
+ 
+ const emptyForm: FormState = {
+-  name: '', ip: '', hostname: '', os: '', status: 'active',
++  name: '', ip: '', hostname: '', os: '', status: 'active', provider: '',
+   plan: '', region: '', websites: '', databases: '', desc: '', backup: '',
+ };
+ 
+@@ -144,6 +165,7 @@ export default function ServersTab() {
+   const [saving, setSaving] = useState(false);
+   const [detail, setDetail] = useState<ServerEntry | null>(null);
+   const [detailName, setDetailName] = useState('');
++  const [detailProvider, setDetailProvider] = useState<ServerProvider | ''>('');
+   const [detailStatus, setDetailStatus] = useState<ServerStatus>('active');
+   const [detailWebsites, setDetailWebsites] = useState('');
+   const [detailDatabases, setDetailDatabases] = useState('');
+@@ -229,6 +251,7 @@ export default function ServersTab() {
+   function openDetail(s: ServerEntry) {
+     setDetail(s);
+     setDetailName(s.name || '');
++    setDetailProvider(s.provider || '');
+     setDetailStatus(s.status);
+     setDetailWebsites((s.websites || []).join('\n'));
+     setDetailDatabases((s.databases || []).join('\n'));
+@@ -251,6 +274,7 @@ export default function ServersTab() {
+           hostname: form.hostname.trim(),
+           os: form.os.trim(),
+           status: form.status,
++          provider: form.provider || undefined,
+           plan: form.plan.trim(),
+           region: form.region.trim(),
+           websites: linesToList(form.websites),
+@@ -286,6 +310,7 @@ export default function ServersTab() {
+         body: JSON.stringify({
+           name: detailName.trim(),
+           status: detailStatus,
++          provider: detailProvider || '',
+           websites: linesToList(detailWebsites),
+           databases: linesToList(detailDatabases),
+           notes: detailNotes,
+@@ -448,7 +473,10 @@ export default function ServersTab() {
+                   <div key={s.id} className={`srv-card st-${s.status}`} onClick={() => openDetail(s)}>
+                     <div className="srv-card-top">
+                       <div className="srv-card-name">{s.name || 'Unnamed'}</div>
+-                      <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
++                      <div className="srv-card-top-right">
++                        <ProviderBadge provider={s.provider} />
++                        <span className={`srv-badge ${BADGE_CLASS[s.status]}`}>{STATUS_LABEL[s.status]}</span>
++                      </div>
+                     </div>
+                     <div className="srv-card-ip">{s.ip || '—'}</div>
+                     <div className="srv-card-sub">
+@@ -514,6 +542,17 @@ export default function ServersTab() {
+                   <option value="done">Decommissioned</option>
+                 </select>
+               </div>
++              <div className="srv-field">
++                <label>Hosting provider</label>
++                <select
++                  value={form.provider}
++                  onChange={(e) => setForm({ ...form, provider: e.target.value as ServerProvider | '' })}
++                >
++                  <option value="">Unset</option>
++                  <option value="linode">Linode</option>
++                  <option value="ioflood">IOFlood</option>
++                </select>
++              </div>
+             </div>
+             <div className="srv-field-row">
+               <div className="srv-field">
+@@ -570,6 +609,7 @@ export default function ServersTab() {
+         >
+           <div className="modal srv-modal-wide">
+             <h2>{detail.name || 'Unnamed'}</h2>
++            <ProviderBadge provider={detail.provider} />
+             <p className="srv-mono-sub">
+               {detail.ip || '—'}
+               {detail.hostname ? ` · ${detail.hostname}` : ''}
+@@ -617,7 +657,7 @@ export default function ServersTab() {
+             {!!(detail.websites && detail.websites.length) && (
+               <div className="srv-detail-section">
+                 <h4>Websites hosted here</h4>
+-                <div className="srv-chips">
++                <div className="srv-chips srv-chips-list">
+                   {detail.websites.map((w, i) => {
+                     const href = siteHref(w);
+                     return href ? (
+@@ -704,6 +744,17 @@ export default function ServersTab() {
+                 <option value="done">Decommissioned</option>
+               </select>
+             </div>
++            <div className="srv-field">
++              <label>Hosting provider</label>
++              <select
++                value={detailProvider}
++                onChange={(e) => setDetailProvider(e.target.value as ServerProvider | '')}
++              >
++                <option value="">Unset</option>
++                <option value="linode">Linode</option>
++                <option value="ioflood">IOFlood</option>
++              </select>
++            </div>
+             <div className="srv-field">
+               <label>Websites hosted here</label>
+               <textarea value={detailWebsites} onChange={(e) => setDetailWebsites(e.target.value)} placeholder="One per line, e.g. copyworldinc.com" />
+diff --git a/lib/servers-store.ts b/lib/servers-store.ts
+index 7fc8c62..7ad159b 100644
+--- a/lib/servers-store.ts
++++ b/lib/servers-store.ts
+@@ -1,6 +1,20 @@
+ import { promises as fs } from 'fs';
+ import path from 'path';
+-import type { ServerEntry } from './types';
++import type { ServerEntry, ServerStatus } from './types';
++
++const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
++
++// Older data (or a production data/servers.json that predates a board
++// change) can still carry a status value that's no longer one of the 3
++// tracked columns — e.g. the retired 'ready' status. Left as-is, those
++// entries get counted in the total but silently vanish from every column,
++// chart, and KPI tile, since nothing renders an unrecognized status. This
++// coerces anything unrecognized back to 'active' so it always shows up
++// somewhere consistent with the total count.
++function normalizeStatus(entry: ServerEntry): ServerEntry {
++  if (VALID_STATUSES.includes(entry.status)) return entry;
++  return { ...entry, status: 'active' };
++}
+ 
+ // The live data file is NOT committed to git (see .gitignore) — it is
+ // runtime state written by the app itself and must survive `git pull`
+@@ -30,7 +44,7 @@ export async function readServers(): Promise<ServerEntry[]> {
+   const raw = await fs.readFile(DATA_FILE, 'utf-8');
+   try {
+     const parsed = JSON.parse(raw);
+-    return Array.isArray(parsed) ? parsed : [];
++    return Array.isArray(parsed) ? parsed.map(normalizeStatus) : [];
+   } catch {
+     return [];
+   }
+diff --git a/lib/types.ts b/lib/types.ts
+index 1e1a0df..67ea8cd 100644
+--- a/lib/types.ts
++++ b/lib/types.ts
+@@ -64,6 +64,11 @@ export interface BoardStats {
+ 
+ export type ServerStatus = 'active' | 'flagged' | 'done';
+ 
++// Which company actually hosts the physical/virtual machine. Optional and
++// manually set (or auto-set to 'linode' by the Linode sync) since there's
++// no API to confirm this for providers other than Linode.
++export type ServerProvider = 'linode' | 'ioflood';
++
+ export interface ServerEntry {
+   id: string;
+   name: string;
+@@ -87,5 +92,6 @@ export interface ServerEntry {
+   linodeStatus?: string;
+   linodeSyncedAt?: string;
+   cpuPct?: number;
++  provider?: ServerProvider;
+   updatedAt: string;
+ }
+diff --git a/public/logos/ioflood.png b/public/logos/ioflood.png
+new file mode 100644
+index 0000000..e9e93a6
+Binary files /dev/null and b/public/logos/ioflood.png differ

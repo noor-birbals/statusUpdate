@@ -1,6 +1,20 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { ServerEntry } from './types';
+import type { ServerEntry, ServerStatus } from './types';
+
+const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+
+// Older data (or a production data/servers.json that predates a board
+// change) can still carry a status value that's no longer one of the 3
+// tracked columns — e.g. the retired 'ready' status. Left as-is, those
+// entries get counted in the total but silently vanish from every column,
+// chart, and KPI tile, since nothing renders an unrecognized status. This
+// coerces anything unrecognized back to 'active' so it always shows up
+// somewhere consistent with the total count.
+function normalizeStatus(entry: ServerEntry): ServerEntry {
+  if (VALID_STATUSES.includes(entry.status)) return entry;
+  return { ...entry, status: 'active' };
+}
 
 // The live data file is NOT committed to git (see .gitignore) — it is
 // runtime state written by the app itself and must survive `git pull`
@@ -30,7 +44,7 @@ export async function readServers(): Promise<ServerEntry[]> {
   const raw = await fs.readFile(DATA_FILE, 'utf-8');
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeStatus) : [];
   } catch {
     return [];
   }

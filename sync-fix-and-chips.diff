@@ -1,0 +1,70 @@
+diff --git a/app/globals.css b/app/globals.css
+index 6d560b4..b2ade95 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -1186,6 +1186,17 @@ body {
+ a.srv-chip { cursor: pointer; }
+ a.srv-chip:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
+ .srv-chip.db { background: #EAE6FF; border-color: #D8D0F5; color: #6554C0; }
++.srv-chips-list { flex-direction: column; flex-wrap: nowrap; }
++.srv-chips-list .srv-chip {
++  width: 100%;
++  box-sizing: border-box;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  padding: 8px 12px;
++  font-size: 12.5px;
++}
++.srv-chips-list a.srv-chip::after { content: '↗'; opacity: 0.45; font-weight: 400; margin-left: 8px; }
+ .srv-empty-col { text-align: center; padding: 22px 10px; color: #97A0AF; font-size: 12.5px; }
+ .srv-findings { list-style: none; margin-top: 4px; }
+ .srv-findings li { font-size: 12.5px; color: #5E6C84; line-height: 1.6; padding-left: 14px; position: relative; }
+diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
+index 764326f..33b668f 100644
+--- a/components/ServersTab.tsx
++++ b/components/ServersTab.tsx
+@@ -617,7 +617,7 @@ export default function ServersTab() {
+             {!!(detail.websites && detail.websites.length) && (
+               <div className="srv-detail-section">
+                 <h4>Websites hosted here</h4>
+-                <div className="srv-chips">
++                <div className="srv-chips srv-chips-list">
+                   {detail.websites.map((w, i) => {
+                     const href = siteHref(w);
+                     return href ? (
+diff --git a/lib/servers-store.ts b/lib/servers-store.ts
+index 7fc8c62..7ad159b 100644
+--- a/lib/servers-store.ts
++++ b/lib/servers-store.ts
+@@ -1,6 +1,20 @@
+ import { promises as fs } from 'fs';
+ import path from 'path';
+-import type { ServerEntry } from './types';
++import type { ServerEntry, ServerStatus } from './types';
++
++const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
++
++// Older data (or a production data/servers.json that predates a board
++// change) can still carry a status value that's no longer one of the 3
++// tracked columns — e.g. the retired 'ready' status. Left as-is, those
++// entries get counted in the total but silently vanish from every column,
++// chart, and KPI tile, since nothing renders an unrecognized status. This
++// coerces anything unrecognized back to 'active' so it always shows up
++// somewhere consistent with the total count.
++function normalizeStatus(entry: ServerEntry): ServerEntry {
++  if (VALID_STATUSES.includes(entry.status)) return entry;
++  return { ...entry, status: 'active' };
++}
+ 
+ // The live data file is NOT committed to git (see .gitignore) — it is
+ // runtime state written by the app itself and must survive `git pull`
+@@ -30,7 +44,7 @@ export async function readServers(): Promise<ServerEntry[]> {
+   const raw = await fs.readFile(DATA_FILE, 'utf-8');
+   try {
+     const parsed = JSON.parse(raw);
+-    return Array.isArray(parsed) ? parsed : [];
++    return Array.isArray(parsed) ? parsed.map(normalizeStatus) : [];
+   } catch {
+     return [];
+   }
