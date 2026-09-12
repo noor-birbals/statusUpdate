@@ -1,0 +1,147 @@
+diff --git a/app/api/linode/sync/route.ts b/app/api/linode/sync/route.ts
+index 6926e22..457daa5 100644
+--- a/app/api/linode/sync/route.ts
++++ b/app/api/linode/sync/route.ts
+@@ -1,7 +1,7 @@
+ import { NextResponse } from 'next/server';
+ import { getStoredSession } from '@/lib/session';
+ import { readServers, writeServers } from '@/lib/servers-store';
+-import { fetchLinodeInstances, matchServerToInstance, regionLabel } from '@/lib/linode';
++import { fetchLinodeCpuPct, fetchLinodeInstances, matchServerToInstance, regionLabel } from '@/lib/linode';
+ 
+ export async function POST() {
+   const session = await getStoredSession();
+@@ -21,23 +21,27 @@ export async function POST() {
+   const now = new Date().toISOString();
+   let matched = 0;
+ 
+-  const next = servers.map((s) => {
+-    const inst = matchServerToInstance(s, instances);
+-    if (!inst) return s;
+-    matched += 1;
+-    return {
+-      ...s,
+-      linodeLabel: inst.label,
+-      plan: inst.type,
+-      region: regionLabel(inst.region),
+-      linodeStatus: inst.status,
+-      lastBackup: inst.backups?.last_successful
+-        ? new Date(inst.backups.last_successful).toLocaleString()
+-        : s.lastBackup,
+-      linodeSyncedAt: now,
+-      updatedAt: now,
+-    };
+-  });
++  const next = await Promise.all(
++    servers.map(async (s) => {
++      const inst = matchServerToInstance(s, instances);
++      if (!inst) return s;
++      matched += 1;
++      const cpuPct = await fetchLinodeCpuPct(inst.id);
++      return {
++        ...s,
++        linodeLabel: inst.label,
++        plan: inst.type,
++        region: regionLabel(inst.region),
++        linodeStatus: inst.status,
++        cpuPct: cpuPct !== null ? cpuPct : s.cpuPct,
++        lastBackup: inst.backups?.last_successful
++          ? new Date(inst.backups.last_successful).toLocaleString()
++          : s.lastBackup,
++        linodeSyncedAt: now,
++        updatedAt: now,
++      };
++    }),
++  );
+ 
+   await writeServers(next);
+ 
+diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
+index 15e4c4b..86f5c1e 100644
+--- a/components/ServersTab.tsx
++++ b/components/ServersTab.tsx
+@@ -447,9 +447,12 @@ export default function ServersTab() {
+                       {s.region || '—'}
+                       {s.lastBackup && <> · Backed up {s.lastBackup}</>}
+                     </div>
+-                    {parseMemUsedPct(s.mem) !== null && (
++                    {(s.cpuPct !== undefined || parseMemUsedPct(s.mem) !== null) && (
+                       <div className="srv-resource-bars">
+-                        <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
++                        {s.cpuPct !== undefined && <ResourceBar label="CPU" pct={s.cpuPct} />}
++                        {parseMemUsedPct(s.mem) !== null && (
++                          <ResourceBar label="Memory" pct={parseMemUsedPct(s.mem)!} />
++                        )}
+                       </div>
+                     )}
+                     {s.status === 'flagged' && s.flagNote && (
+@@ -651,16 +654,19 @@ export default function ServersTab() {
+               </div>
+             )}
+ 
+-            {(detail.disk || detail.mem) && (
++            {(detail.disk || detail.mem || detail.cpuPct !== undefined) && (
+               <div className="srv-detail-section">
+                 <h4>Resources</h4>
+                 <p className="srv-detail-text">
++                  {detail.cpuPct !== undefined && `CPU (live): ${detail.cpuPct}%`}
++                  {detail.cpuPct !== undefined && detail.disk && ' · '}
+                   {detail.disk && `Disk: ${detail.disk}`}
+-                  {detail.disk && detail.mem && ' · '}
++                  {(detail.cpuPct !== undefined || detail.disk) && detail.mem && ' · '}
+                   {detail.mem && `Memory: ${detail.mem}`}
+                 </p>
+-                {(parsePct(detail.disk) !== null || parseMemUsedPct(detail.mem) !== null) && (
++                {(detail.cpuPct !== undefined || parsePct(detail.disk) !== null || parseMemUsedPct(detail.mem) !== null) && (
+                   <div className="srv-resource-bars">
++                    {detail.cpuPct !== undefined && <ResourceBar label="CPU" pct={detail.cpuPct} />}
+                     {parsePct(detail.disk) !== null && <ResourceBar label="Disk" pct={parsePct(detail.disk)!} />}
+                     {parseMemUsedPct(detail.mem) !== null && (
+                       <ResourceBar label="Memory" pct={parseMemUsedPct(detail.mem)!} />
+diff --git a/lib/linode.ts b/lib/linode.ts
+index 74d60ff..023c8cc 100644
+--- a/lib/linode.ts
++++ b/lib/linode.ts
+@@ -72,3 +72,31 @@ export function matchServerToInstance(
+   const ip = server.ip.trim();
+   return instances.find((inst) => inst.ipv4?.some((a) => a === ip));
+ }
++
++// Linode's hypervisor reports real CPU usage per instance out of the box —
++// no agent needed. It does NOT report in-guest memory usage (the API only
++// knows the plan's allocated RAM, not what's actually used inside the
++// guest), so this stays CPU-only; memory keeps using the manually-entered
++// field elsewhere. Returns null (rather than throwing) when stats aren't
++// available yet for a Linode, so one missing instance never fails a sync.
++export async function fetchLinodeCpuPct(linodeId: number): Promise<number | null> {
++  const token = process.env.LINODE_API_TOKEN;
++  if (!token) return null;
++
++  try {
++    const res = await fetch(`https://api.linode.com/v4/linode/instances/${linodeId}/stats`, {
++      headers: { Authorization: `Bearer ${token}` },
++      cache: 'no-store',
++    });
++    if (!res.ok) return null;
++    const data = await res.json();
++    const series: [number, number][] | undefined = data?.data?.cpu;
++    if (!series || !series.length) return null;
++    // Average the last few points so a single noisy sample doesn't jump the bar.
++    const recent = series.slice(-3);
++    const avg = recent.reduce((sum, [, v]) => sum + v, 0) / recent.length;
++    return Math.min(100, Math.max(0, Math.round(avg)));
++  } catch {
++    return null;
++  }
++}
+diff --git a/lib/types.ts b/lib/types.ts
+index 9bbe343..3758fb1 100644
+--- a/lib/types.ts
++++ b/lib/types.ts
+@@ -86,5 +86,6 @@ export interface ServerEntry {
+   notes?: string;
+   linodeStatus?: string;
+   linodeSyncedAt?: string;
++  cpuPct?: number;
+   updatedAt: string;
+ }

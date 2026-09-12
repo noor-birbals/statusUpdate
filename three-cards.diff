@@ -1,0 +1,167 @@
+diff --git a/app/api/servers/[id]/route.ts b/app/api/servers/[id]/route.ts
+index 09f4069..0566e07 100644
+--- a/app/api/servers/[id]/route.ts
++++ b/app/api/servers/[id]/route.ts
+@@ -3,7 +3,7 @@ import { getStoredSession } from '@/lib/session';
+ import { readServers, writeServers } from '@/lib/servers-store';
+ import type { ServerStatus } from '@/lib/types';
+ 
+-const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'ready', 'done'];
++const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+ 
+ // 'name' and 'ip' are intentionally excluded: they're required (non-optional)
+ // fields on ServerEntry, and nothing in the UI edits them via PATCH today —
+diff --git a/app/api/servers/route.ts b/app/api/servers/route.ts
+index 9e5e56e..404f89a 100644
+--- a/app/api/servers/route.ts
++++ b/app/api/servers/route.ts
+@@ -3,7 +3,7 @@ import { getStoredSession } from '@/lib/session';
+ import { newServerId, readServers, writeServers } from '@/lib/servers-store';
+ import type { ServerEntry, ServerStatus } from '@/lib/types';
+ 
+-const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'ready', 'done'];
++const VALID_STATUSES: ServerStatus[] = ['active', 'flagged', 'done'];
+ 
+ export async function GET() {
+   const session = await getStoredSession();
+diff --git a/app/globals.css b/app/globals.css
+index 7526f9e..6d560b4 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -1128,9 +1128,9 @@ body {
+ .srv-power.up .srv-power-dot { background: #00875A; }
+ .srv-power.down .srv-power-dot { background: #97A0AF; }
+ 
+-.srv-kpi-strip { grid-template-columns: repeat(6, 1fr); }
++.srv-kpi-strip { grid-template-columns: repeat(5, 1fr); }
+ 
+-.srv-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
++.srv-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+ .srv-col { background: rgba(255, 255, 255, 0.5); border-radius: 12px; padding: 12px; min-height: 60px; }
+ .srv-col-head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 12px; }
+ .srv-col-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+@@ -1231,9 +1231,6 @@ a.srv-chip:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
+ }
+ .btn-danger:hover { background: #FFEBE6; }
+ 
+-@media (max-width: 1300px) {
+-  .srv-board { grid-template-columns: repeat(2, 1fr); }
+-}
+ @media (max-width: 900px) {
+   .srv-board { grid-template-columns: 1fr; }
+   .srv-kpi-strip { grid-template-columns: repeat(3, 1fr); }
+diff --git a/components/ServersTab.tsx b/components/ServersTab.tsx
+index 86f5c1e..da9db95 100644
+--- a/components/ServersTab.tsx
++++ b/components/ServersTab.tsx
+@@ -88,23 +88,20 @@ function ResourceBar({ label, pct }: { label: string; pct: number }) {
+ }
+ 
+ const COLUMNS: { status: ServerStatus; label: string; dot: string }[] = [
+-  { status: 'active', label: 'Active — not yet reviewed', dot: 'orange' },
++  { status: 'active', label: 'Active', dot: 'orange' },
+   { status: 'flagged', label: 'Flagged — do not delete', dot: 'red' },
+-  { status: 'ready', label: 'Ready to delete', dot: 'blue' },
+   { status: 'done', label: 'Decommissioned', dot: 'green' },
+ ];
+ 
+ const STATUS_LABEL: Record<ServerStatus, string> = {
+   active: 'Active',
+   flagged: 'Flagged',
+-  ready: 'Ready to delete',
+   done: 'Decommissioned',
+ };
+ 
+ const BADGE_CLASS: Record<ServerStatus, string> = {
+   active: 'orange',
+   flagged: 'red',
+-  ready: 'blue',
+   done: 'green',
+ };
+ 
+@@ -194,7 +191,7 @@ export default function ServersTab() {
+   }
+ 
+   const counts = useMemo(() => {
+-    const c: Record<ServerStatus, number> = { active: 0, flagged: 0, ready: 0, done: 0 };
++    const c: Record<ServerStatus, number> = { active: 0, flagged: 0, done: 0 };
+     servers.forEach((s) => {
+       c[s.status] = (c[s.status] || 0) + 1;
+     });
+@@ -348,10 +345,6 @@ export default function ServersTab() {
+           <div className="kpi-value">{counts.flagged}</div>
+           <div className="kpi-label">Flagged active</div>
+         </div>
+-        <div className="kpi-card blue">
+-          <div className="kpi-value">{counts.ready}</div>
+-          <div className="kpi-label">Ready to delete</div>
+-        </div>
+         <div className="kpi-card green">
+           <div className="kpi-value">{counts.done}</div>
+           <div className="kpi-label">Decommissioned</div>
+@@ -369,11 +362,11 @@ export default function ServersTab() {
+             <div className="chart-wrap" style={{ height: 200 }}>
+               <Doughnut
+                 data={{
+-                  labels: ['Active', 'Flagged', 'Ready to delete', 'Decommissioned'],
++                  labels: ['Active', 'Flagged', 'Decommissioned'],
+                   datasets: [
+                     {
+-                      data: [counts.active, counts.flagged, counts.ready, counts.done],
+-                      backgroundColor: ['#FF8B00', '#DE350B', '#0052CC', '#00875A'],
++                      data: [counts.active, counts.flagged, counts.done],
++                      backgroundColor: ['#FF8B00', '#DE350B', '#00875A'],
+                       borderWidth: 2,
+                       borderColor: '#fff',
+                     },
+@@ -503,7 +496,6 @@ export default function ServersTab() {
+                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ServerStatus })}>
+                   <option value="active">Active — not yet reviewed</option>
+                   <option value="flagged">Flagged — do not delete</option>
+-                  <option value="ready">Ready to delete</option>
+                   <option value="done">Decommissioned</option>
+                 </select>
+               </div>
+@@ -690,7 +682,6 @@ export default function ServersTab() {
+               <select value={detailStatus} onChange={(e) => setDetailStatus(e.target.value as ServerStatus)}>
+                 <option value="active">Active — not yet reviewed</option>
+                 <option value="flagged">Flagged — do not delete</option>
+-                <option value="ready">Ready to delete</option>
+                 <option value="done">Decommissioned</option>
+               </select>
+             </div>
+diff --git a/data/servers.seed.json b/data/servers.seed.json
+index 2dd3dbf..3dc9375 100644
+--- a/data/servers.seed.json
++++ b/data/servers.seed.json
+@@ -51,7 +51,7 @@
+     "ip": "172.234.249.190",
+     "hostname": "inwilltrust-1.srv.birbals.com",
+     "os": "Debian 12 (bookworm)",
+-    "status": "ready",
++    "status": "active",
+     "desc": "Hosts cryptotrustandwill.com (Laravel 'WillAndTestament') and a live vtigercrm instance. vtigercrm_old confirmed unused and dropped from the backup.",
+     "findings": [
+       "Laravel app: /cryptotrustandwill/WillAndTestament (cryptotrustandwill.com)",
+@@ -137,7 +137,7 @@
+     "ip": "172.232.185.48",
+     "hostname": "staging.srv.birbals.com",
+     "os": "Debian 12 (bookworm)",
+-    "status": "ready",
++    "status": "active",
+     "disk": "6.2G / 315G (2%)",
+     "mem": "14Gi available / 15Gi",
+     "desc": "Linode 16GB plan (6 CPU / 16GB RAM / 320GB storage), Seattle WA. Investigated thoroughly — no application deployed.",
+diff --git a/lib/types.ts b/lib/types.ts
+index 3758fb1..1e1a0df 100644
+--- a/lib/types.ts
++++ b/lib/types.ts
+@@ -62,7 +62,7 @@ export interface BoardStats {
+   blockers: Blocker[];
+ }
+ 
+-export type ServerStatus = 'active' | 'flagged' | 'ready' | 'done';
++export type ServerStatus = 'active' | 'flagged' | 'done';
+ 
+ export interface ServerEntry {
+   id: string;
